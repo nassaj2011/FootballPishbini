@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 import database as db
-import models  # حتماً مطمئن شوید این فایل در پروژه شما وجود دارد
 import openpyxl
 import io
 import os

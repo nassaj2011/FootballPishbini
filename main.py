@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 import database as db
+import models  # حتماً مطمئن شوید این فایل در پروژه شما وجود دارد
 import openpyxl
 import io
 import os
@@ -31,12 +32,20 @@ scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
 scheduler.start()
 
 app = FastAPI(title="سیستم پیش‌بینی فوتبال")
+
+# --- کد اضافه شده برای ساخت خودکار جداول ---
+@app.on_event("startup")
+def startup_event():
+    db.Base.metadata.create_all(bind=db.engine)
+# ------------------------------------------
+
 templates = Jinja2Templates(directory="templates")
 
 def get_db():
     db_session = db.SessionLocal()
     try: yield db_session
     finally: db_session.close()
+
 
 def get_tehran_timestamp(j_date_str, time_str):
     try:

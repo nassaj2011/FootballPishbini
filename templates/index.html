@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8"><title>لیگ پیش‌بینی فوتبال</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { font-family: Tahoma, Arial, sans-serif; background-color: #f4f7f6; font-size: 14px; }
+        .container { max-width: 1200px; padding: 0 15px; } 
+        .auth-box { max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; font-size: 1.1em; } 
+        .match-card.locked { background-color: #f1f3f5; border-color: #dee2e6; opacity: 0.9; }
+        .tabs { display: flex; justify-content: space-around; margin-bottom: 1rem; cursor: pointer; border-bottom: 2px solid #eee; }
+        .tab { padding: 10px; font-weight: bold; color: gray; } .tab.active { color: #1095c1; border-bottom: 2px solid #1095c1; margin-bottom: -2px; }
+        .countdown { font-size: 0.8em; background-color: #ffeaa7; padding: 3px 8px; border-radius: 5px; color: #d35400; display: inline-block; margin-top: 5px; font-weight: bold;}
+        
+        .locked-msg-container { margin-top: 10px; padding: 8px 12px; background: #fadbd8; border-radius: 5px; border: 1px solid #f5b7b1; display: flex; justify-content: space-between; align-items: center; font-size: 0.8em; }
+        .locked-msg { color: #c0392b; font-weight: bold; margin: 0;}
+        .finished-score { background-color: #d4edda; color: #155724; padding: 4px 10px; border-radius: 5px; font-weight: bold; font-size: 1.1em; margin: 0; border: 1px solid #c3e6cb;}
+        
+        .pred-list { margin-top: 10px; background: #fafafa; border: 1px solid #eee; padding: 10px; border-radius: 5px; max-height: 250px; overflow-y: auto; font-size: 0.8em; }
+        .pred-list li { padding: 5px 0; border-bottom: 1px dashed #ddd; display: flex; justify-content: space-between; }
+        
+        .leaderboard-table th, .leaderboard-table td { font-size: 0.8em; text-align: center; padding: 8px 5px; vertical-align: middle; }
+        .urgent-alert { background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .urgent-match-badge { display: inline-block; background-color: #fff; padding: 4px 12px; border-radius: 20px; margin-left: 8px; margin-top: 8px; border: 1px solid #f9ca24; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #2c3e50; }
+        
+        /* استایل برچسب نتایج پرتکرار */
+        .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 6px; border-radius: 4px; font-size: 0.95em; font-weight: bold; margin-left: 4px; }
+    </style>
+</head>
+<body>
+    <main class="container" x-data="footballApp()" x-init="initData()">
+        
+        <article style="text-align: center; margin-bottom: 1rem; background: transparent; box-shadow: none;">
+            <h1 style="color: #2c3e50;">⚽ سیستم پیش‌بینی مسابقات ⚽</h1>
+        </article>
+
+        <!-- بخش ورود / ثبت‌نام -->
+        <div x-show="!isLoggedIn" class="auth-box">
+            <div class="tabs">
+                <div class="tab" :class="{ 'active': authMode === 'login' }" @click="authMode = 'login'">ورود</div>
+                <div class="tab" :class="{ 'active': authMode === 'register' }" @click="authMode = 'register'">ثبت‌نام</div>
+            </div>
+            <div x-show="authMode === 'login'">
+                <input type="text" placeholder="نام کاربری" x-model="loginUsername">
+                <input type="password" placeholder="رمز عبور" x-model="loginPassword">
+                <button @click="login()">ورود</button>
+            </div>
+            <div x-show="authMode === 'register'">
+                <input type="text" placeholder="نام کاربری دلخواه" x-model="regUsername">
+                <input type="password" placeholder="رمز عبور" x-model="regPassword">
+                <input type="password" placeholder="تکرار رمز عبور" x-model="regConfirm">
+                <button @click="register()">ثبت‌نام</button>
+            </div>
+        </div>
+
+        <!-- داشبورد کاربری -->
+        <div x-show="isLoggedIn" style="display: none;">
+            
+            <div style="background-color: #eaf4f4; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 1.1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
+                <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 5px 15px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.9em;">خروج از حساب</a>
+            </div>
+
+            <div x-show="urgentMatches.length > 0" class="urgent-alert" style="display: none;">
+                <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1.1em;">⚠️ یادآوری مهم: فرصت رو به پایان!</h4>
+                <p style="margin: 0; font-size: 0.9em;">زمان پیش‌بینی مسابقات زیر کمتر از ۲۴ ساعت دیگر بسته خواهد شد:</p>
+                <div style="margin-top: 5px;">
+                    <template x-for="um in urgentMatches" :key="um.id">
+                        <span class="urgent-match-badge" x-text="um.home_team + ' ⚡ ' + um.away_team"></span>
+                    </template>
+                </div>
+            </div>
+
+            <div class="grid" style="grid-template-columns: 4fr 5fr; gap: 20px;">
+                <!-- ستون راست: لیست بازی‌های آینده -->
+                <div>
+                    <article>
+                        <h3 style="color: #2980b9;">بازی‌ها و پیش‌بینی (آینده)</h3>
+                        <div dir="rtl">
+                            <template x-for="match in upcomingMatches" :key="match.id">
+                                <div class="match-card" :class="{'locked': match.isLocked}">
+                                    
+                                    <strong><span x-text="match.home_team"></span> ⚡ <span x-text="match.away_team"></span></strong>
+                                    
+                                    <div style="font-size: 0.75em; color: #555; margin-top: 5px;">
+                                        📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
+                                    </div>
+
+                                    <div x-show="match.isLocked" class="locked-msg-container">
+                                        <span class="locked-msg">🔒 زمان پیش‌بینی پایان یافته (در انتظار نتیجه)</span>
+                                    </div>
+                                    
+                                    <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText"></div>
+                                    
+                                    <!-- ردیف فرم پیش‌بینی و نمایش نتایج پرتکرار -->
+                                    <div x-show="!match.isLocked" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                        
+                                        <!-- سمت راست: فرم وارد کردن پیش‌بینی -->
+                                        <div style="display: flex; gap: 5px;">
+                                            <input type="number" style="width: 70px; margin:0; text-align: center;" min="0" x-model.number="match.predHome">
+                                            <input type="number" style="width: 70px; margin:0; text-align: center;" min="0" x-model.number="match.predAway">
+                                            <button style="padding: 5px 15px; width: auto; margin:0; font-size: 0.85em;" @click="submitPrediction(match)">ثبت/ویرایش</button>
+                                        </div>
+
+                                        <!-- سمت چپ: سه پیش‌بینی پرتکرار -->
+                                        <div style="text-align: left; font-size: 0.75em; color: #7f8c8d; line-height: 1.2;">
+                                            <div x-show="getTop3Predictions(match.id).length > 0">پرتکرارترین نتایج:</div>
+                                            <div style="margin-top: 3px;" dir="ltr">
+                                                <template x-for="top in getTop3Predictions(match.id)" :key="top.result">
+                                                    <!-- نمایش نتیجه و تعداد افراد درون پرانتز -->
+                                                    <span class="top-pred-badge" x-text="top.result + ' (' + top.count + ')'"></span>
+                                                </template>
+                                                <span x-show="getTop3Predictions(match.id).length === 0" style="color: #ccc; font-style: italic;">هنوز پیش‌بینی ثبت نشده</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                    <!-- پایان ردیف فرم پیش‌بینی -->
+
+                                </div>
+                            </template>
+                            <template x-if="upcomingMatches.length === 0">
+                                <p style="color: gray; font-size: 0.9em; text-align: center;">در حال حاضر مسابقه‌ای در جریان نیست.</p>
+                            </template>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- ستون چپ: رده‌بندی + بازی‌های برگزار شده -->
+                <div>
+                    <!-- ۱. جدول رده‌بندی -->
+                    <article style="margin-bottom: 20px;">
+                        <h3>جدول رده‌بندی 🏆</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="striped leaderboard-table">
+                                <thead>
+                                    <tr>
+                                        <th>رتبه</th><th>کاربر</th><th>امتیاز کل</th><th>۳ امتیازی</th><th>۲ امتیازی</th><th>۱ امتیازی</th><th>غلط</th><th>ثبت‌نشده</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(user, index) in leaderboard" :key="user.id">
+                                        <tr>
+                                            <td x-text="index + 1"></td>
+                                            <td><strong x-text="user.name"></strong></td>
+                                            <td><strong x-text="user.score" style="color: #27ae60; font-size: 1.2em;"></strong></td>
+                                            <td x-text="user.exact"></td>
+                                            <td x-text="user.diff"></td>
+                                            <td x-text="user.winner"></td>
+                                            <td x-text="user.wrong" style="color: #e74c3c;"></td>
+                                            <td x-text="user.missed" style="color: gray;"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
+                    <!-- ۲. بازی‌های برگزار شده -->
+                    <article>
+                        <h3 style="color: #27ae60;">بازی‌های برگزار شده 🏁</h3>
+                        <div dir="rtl">
+                            <template x-for="match in finishedMatches" :key="match.id">
+                                <div class="match-card locked">
+                                    
+                                    <strong><span x-text="match.home_team"></span> ⚡ <span x-text="match.away_team"></span></strong>
+                                    
+                                    <div style="font-size: 0.75em; color: #555; margin-top: 5px;">
+                                        📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
+                                    </div>
+
+                                    <div style="margin-top: 10px; display: inline-block;">
+                                        <span class="finished-score">
+                                            نتیجه نهایی: <span x-text="match.actual_home_goals"></span> - <span x-text="match.actual_away_goals"></span>
+                                        </span>
+                                    </div>
+
+                                    <!-- لیست پیش‌بینی‌های بازی تمام شده (حفظ شده طبق درخواست) -->
+                                    <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                                        <a href="#" @click.prevent="openPredictionMatchId = openPredictionMatchId === match.id ? null : match.id" style="font-size: 0.8em; font-weight: bold; text-decoration: none; display: block; text-align: center;">
+                                            <span x-text="openPredictionMatchId === match.id ? '➖ بستن لیست پیش‌بینی‌ها' : '➕ پیش‌بینی شرکت‌کنندگان'"></span>
+                                        </a>
+                                        
+                                        <div x-show="openPredictionMatchId === match.id" class="pred-list" style="display: none;">
+                                            <template x-if="allPredictions[match.id] && allPredictions[match.id].length > 0">
+                                                <ul style="list-style: none; padding: 0; margin: 0;">
+                                                    <template x-for="pred in allPredictions[match.id]">
+                                                        <li>
+                                                            <strong x-text="pred.user_name" style="color: #2c3e50;"></strong>
+                                                            <span dir="ltr" x-text="getPredictionText(pred, match)" style="color: #555; font-weight: bold;"></span>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </template>
+                                            <template x-if="!allPredictions[match.id] || allPredictions[match.id].length === 0">
+                                                <div style="text-align: center; color: gray;">هیچ پیش‌بینی ثبت نشده است.</div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </template>
+                            <template x-if="finishedMatches.length === 0">
+                                <p style="color: gray; font-size: 0.9em; text-align: center;">هنوز مسابقه‌ای به پایان نرسیده است.</p>
+                            </template>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function footballApp() {
+            return {
+                isLoggedIn: false, authMode: 'login', currentUser: { id: null, name: "" },
+                loginUsername: "", loginPassword: "", regUsername: "", regPassword: "", regConfirm: "",
+                matches: [], leaderboard: [], urgentMatches: [], timerInterval: null, 
+                allPredictions: {}, openPredictionMatchId: null,
+                
+                get upcomingMatches() { return this.matches.filter(m => m.status !== 'finished'); },
+                get finishedMatches() { return this.matches.filter(m => m.status === 'finished'); },
+
+                initData() {
+                    const savedUser = localStorage.getItem('footballUser');
+                    if (savedUser) {
+                        this.currentUser = JSON.parse(savedUser);
+                        this.isLoggedIn = true;
+                        if (this.currentUser.is_admin) { window.location.href = '/admin'; return; }
+                    }
+                    if (!this.isLoggedIn) return;
+
+                    fetch('/matches/list').then(r => r.json()).then(data => {
+                        this.matches = data.map(m => ({...m, predHome: 0, predAway: 0, isLocked: false, countdownText: ""}));
+                        this.startCountdown();
+                    });
+                    
+                    fetch('/leaderboard/').then(r => r.json()).then(data => this.leaderboard = data);
+                    fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
+                },
+
+                // محاسبه ۳ پیش‌بینی پرتکرار
+                getTop3Predictions(matchId) {
+                    const preds = this.allPredictions[matchId];
+                    if (!preds || preds.length === 0) return [];
+
+                    // شمارش تکرار هر نتیجه
+                    const counts = {};
+                    preds.forEach(p => {
+                        const resultKey = `${p.home}-${p.away}`;
+                        counts[resultKey] = (counts[resultKey] || 0) + 1;
+                    });
+
+                    // تبدیل به آرایه، مرتب‌سازی نزولی و گرفتن ۳ تای اول
+                    return Object.entries(counts)
+                        .map(([result, count]) => ({ result, count }))
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 3);
+                },
+
+                getPredictionText(pred, match) {
+                    let text = `${pred.home} - ${pred.away}`;
+                    if (pred.home > pred.away) text += ` (برد ${match.home_team})`;
+                    else if (pred.away > pred.home) text += ` (برد ${match.away_team})`;
+                    else text += ` (مساوی)`;
+                    return text;
+                },
+
+                startCountdown() {
+                    if (this.timerInterval) clearInterval(this.timerInterval);
+                    this.timerInterval = setInterval(() => {
+                        const nowTS = Math.floor(Date.now() / 1000); 
+                        this.matches.forEach(m => {
+                            if (m.status === 'finished') { m.isLocked = true; } 
+                            else if (m.timestamp && m.status === 'upcoming') {
+                                let diff = m.timestamp - nowTS;
+                                let lockDiff = diff - 900; 
+                                if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; } 
+                                else {
+                                    m.isLocked = false;
+                                    let d = Math.floor(lockDiff / 86400), h = Math.floor((lockDiff % 86400) / 3600);
+                                    let min = Math.floor((lockDiff % 3600) / 60), sec = lockDiff % 60;
+                                    m.countdownText = `پایان مهلت ثبت: ${d} روز و ${h} ساعت و ${min} دقیقه و ${sec} ثانیه`;
+                                }
+                            } else { m.isLocked = true; }
+                        });
+                        this.urgentMatches = this.matches.filter(m => m.status === 'upcoming' && !m.isLocked && m.timestamp && ((m.timestamp - nowTS) <= 86400));
+                    }, 1000);
+                },
+
+                login() {
+                    fetch(`/login/?name=${this.loginUsername}&password=${this.loginPassword}`, { method: 'POST' })
+                    .then(r => r.json()).then(d => {
+                        if(d.status === "success") { 
+                            const uData = {id: d.user_id, name: d.name, is_admin: d.is_admin || false};
+                            localStorage.setItem('footballUser', JSON.stringify(uData)); 
+                            if(uData.is_admin) { window.location.href = '/admin'; } 
+                            else { this.currentUser = uData; this.isLoggedIn = true; this.initData(); }
+                        } else alert("خطا: اطلاعات ورود اشتباه است");
+                    });
+                },
+                register() {
+                    if(this.regPassword !== this.regConfirm) return alert("رمز عبور تطابق ندارد!");
+                    fetch(`/users/?name=${this.regUsername}&password=${this.regPassword}`, { method: 'POST' })
+                    .then(r => r.json()).then(d => {
+                        if(d.status === "success") { 
+                            const uData = {id: d.user_id, name: d.name, is_admin: false};
+                            localStorage.setItem('footballUser', JSON.stringify(uData)); 
+                            this.currentUser = uData; this.isLoggedIn = true; this.initData(); 
+                        } else alert("خطا در ثبت‌نام");
+                    });
+                },
+                logout() { this.isLoggedIn = false; localStorage.removeItem('footballUser'); if(this.timerInterval) clearInterval(this.timerInterval); },
+                
+                submitPrediction(m) {
+                    if (m.isLocked) return alert("زمان ثبت پیش‌بینی تمام شده است!");
+                    fetch(`/predictions/?user_id=${this.currentUser.id}&match_id=${m.id}&home_goals=${m.predHome}&away_goals=${m.predAway}`, { method: 'POST' })
+                    .then(r => r.json()).then(d => {
+                        if(d.status === "success") { 
+                            alert("پیش‌بینی ثبت شد!"); 
+                            fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data); 
+                        } 
+                        else alert("خطا: " + (d.detail || ""));
+                    });
+                }
+            };
+        }
+    </script>
+</body>
+</html>

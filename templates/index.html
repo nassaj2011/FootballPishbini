@@ -8,8 +8,14 @@
         body { font-family: Tahoma, Arial, sans-serif; background-color: #f4f7f6; font-size: 14px; }
         .container { max-width: 1200px; padding: 0 15px; }
         .auth-box { max-width: 400px; margin: 1rem auto; padding: 1.5rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; font-size: 1.1em; }
+        
+        .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; }
+        /* رنگ پس‌زمینه برای بازی‌هایی که پیش‌بینی شده‌اند */
+        .match-card.predicted { background-color: rgb(176, 224, 230); border-color: #9ccdd3; }
+        /* رنگ پس‌زمینه برای بازی‌های قفل شده */
         .match-card.locked { background-color: #f1f3f5; border-color: #dee2e6; opacity: 0.9; }
+        .match-card.predicted.locked { background-color: #d1e8ea; }
+        
         .tabs { display: flex; justify-content: space-around; margin-bottom: 1rem; cursor: pointer; border-bottom: 2px solid #eee; }
         .tab { padding: 10px; font-weight: bold; color: gray; } .tab.active { color: #1095c1; border-bottom: 2px solid #1095c1; margin-bottom: -2px; }
         .countdown { font-size: 0.8em; background-color: #ffeaa7; padding: 3px 8px; border-radius: 5px; color: #d35400; display: inline-block; margin-top: 5px; font-weight: bold;}
@@ -25,8 +31,8 @@
         .urgent-alert { background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .urgent-match-badge { display: inline-block; background-color: #fff; padding: 4px 12px; border-radius: 20px; margin-left: 8px; margin-top: 8px; border: 1px solid #f9ca24; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #2c3e50; }
         
-        .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-weight: bold; margin-left: 4px; margin-bottom: 4px;}
-        .success-checkmark { color: #20c997; font-weight: bold; font-size: 0.85em; margin-right: 8px; animation: fadeIn 0.3s ease-in-out; }
+        .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-weight: bold; margin-bottom: 4px; width: 100%; text-align: right; box-sizing: border-box;}
+        .success-checkmark { color: #20c997; font-weight: bold; font-size: 0.85em; margin-left: 8px; animation: fadeIn 0.3s ease-in-out; }
         
         .rank-up { color: #2ecc71; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
         .rank-down { color: #e74c3c; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
@@ -34,13 +40,16 @@
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* استایل اختصاصی برای دکمه کشویی قوانین */
         details.rules-accordion summary { font-size: 0.95em; font-weight: bold; color: #2c3e50; cursor: pointer; margin-bottom: 0; outline: none; }
         details.rules-accordion summary::marker { color: #1095c1; }
         .rules-content { font-size: 0.85em; color: #444; margin-top: 15px; line-height: 1.6; max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px dashed #d1e5e5; padding-top: 10px; }
         .rules-content h5 { margin-bottom: 5px; color: #2980b9; font-size: 1.05em; font-weight: bold; }
         .rules-content ul { margin-bottom: 15px; padding-right: 20px; }
         .rules-content li { margin-bottom: 5px; }
+        
+        /* استایل اختصاصی برای ورودی‌های بازی مطابق تصویر X2 */
+        .score-input-wrapper { display: flex; align-items: center; gap: 5px; background: white; border: 1px solid #ccc; border-radius: 5px; padding: 5px; }
+        .score-input-wrapper input { width: 45px !important; height: 40px !important; margin: 0 !important; text-align: center; font-size: 1.2em; font-weight: bold; padding: 0; border: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -72,77 +81,49 @@
         <!-- داشبورد کاربری -->
         <div x-show="isLoggedIn" style="display: none;">
             
-            <!-- ردیف بالای داشبورد: نمایش نام کاربری و اعلان‌ها در کنار هم -->
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: flex-start;">
                 
-                <!-- باکس خوش‌آمدگویی و دکمه کشویی قوانین (سمت راست) -->
                 <div style="flex: 1; min-width: 300px; background-color: #eaf4f4; border-radius: 8px; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <strong style="font-size: 1.1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
                         <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 5px 15px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.9em;">خروج</a>
                     </div>
                     
-                    <!-- بخش کشویی قوانین -->
                     <details class="rules-accordion" style="margin-bottom: 0; background: white; border-radius: 5px; padding: 8px 12px; border: 1px solid #d1e5e5;">
                         <summary>📜 مطالعه قوانین مسابقه و امتیازدهی</summary>
                         <div class="rules-content">
                             <h5>۱. مهلت ثبت و ویرایش پیش‌بینی‌ها</h5>
                             <ul>
                                 <li>شما می‌توانید برای تمام بازی‌های آینده، پیش‌بینی خود را ثبت کنید یا تا قبل از بسته شدن فرم، بارها آن را ویرایش نمایید.</li>
-                                <li><strong>قانون زمان طلایی:</strong> مهلت ثبت یا ویرایش پیش‌بینی هر مسابقه، دقیقاً تا <strong>۱۵ دقیقه قبل از شروع رسمی بازی</strong> است. با عبور از این زمان، سیستم به صورت خودکار کادرهای ورود نتیجه را قفل خواهد کرد و هیچ تغییری مسموع نخواهد بود.</li>
+                                <li><strong>قانون زمان طلایی:</strong> مهلت ثبت یا ویرایش پیش‌بینی هر مسابقه، دقیقاً تا <strong>۱۵ دقیقه قبل از شروع رسمی بازی</strong> است. با عبور از این زمان، سیستم به صورت خودکار کادرهای ورود نتیجه را قفل خواهد کرد.</li>
                             </ul>
 
-                            <h5>۲. سیستم هوشمند امتیازدهی (نحوه محاسبه برد، باخت و مساوی)</h5>
-                            <p style="margin-bottom: 5px;">پس از پایان هر مسابقه و درج نتیجه واقعی در سیستم، امتیاز شما دقیقاً بر اساس منطق زیر محاسبه می‌شود:</p>
+                            <h5>۲. سیستم هوشمند امتیازدهی</h5>
                             <ul>
-                                <li><strong>طرح ۳ امتیازی (شکار نتیجه دقیق):</strong><br>اگر تعداد گل‌های هر دو تیم را کاملاً درست حدس زده باشید.<br>
-                                <span style="color:gray">- حالت برد:</span> پیش‌بینی شما: ایران ۲ - ۰ مکزیک | نتیجه واقعی: ۲-۰<br>
-                                <span style="color:gray">- حالت مساوی:</span> پیش‌بینی شما: ایران ۱ - ۱ مکزیک | نتیجه واقعی: ۱-۱</li>
-                                
-                                <li><strong style="color: #27ae60;">طرح ۲ امتیازی (تفاضل گلِ درست یا حدس مساویِ غیردقیق):</strong><br>اگر جهت بازی (برنده) و اختلاف گل‌ها را درست حدس بزنید، اما تعداد گل‌ها فرق کند. <strong>همچنین اگر مساوی شدن بازی را درست حدس بزنید ولی تعداد گل‌ها اشتباه باشد، دقیقاً ۲ امتیاز می‌گیرید</strong> (چون تفاضل گل در هر دو حالت مساوی، «صفر» است).<br>
-                                <span style="color:gray">- حالت برد:</span> پیش‌بینی شما: ۲-۰ | نتیجه واقعی: ۳-۱ (در هر دو حالت تفاضل ۲ گل است).<br>
-                                <span style="color:gray">- حالت مساوی:</span> پیش‌بینی شما: ۰-۰ | نتیجه واقعی: ۲-۲ (مساوی را درست تشخیص دادید اما تعداد گل‌ها فرق داشت).</li>
-                                
+                                <li><strong>طرح ۳ امتیازی (شکار نتیجه دقیق):</strong><br>اگر تعداد گل‌های هر دو تیم را کاملاً درست حدس زده باشید.</li>
+                                <li><strong style="color: #27ae60;">طرح ۲ امتیازی (تفاضل گلِ درست یا حدس مساویِ غیردقیق):</strong><br>اگر جهت بازی (برنده) و اختلاف گل‌ها را درست حدس بزنید. <strong>همچنین اگر مساوی شدن بازی را درست حدس بزنید ولی تعداد گل‌ها اشتباه باشد، دقیقاً ۲ امتیاز می‌گیرید.</strong></li>
                                 <li><strong>طرح ۱ امتیازی (فقط تشخیص برنده):</strong><br>اگر فقط تیم برنده را درست حدس زده باشید، اما تفاضل گل و نتیجه دقیق کاملاً اشتباه باشد.<br>
-                                <span style="color:gray">- مثال:</span> پیش‌بینی شما: ۱-۰ | نتیجه واقعی: ۳-۰ (فقط برد تیم میزبان را درست گفته‌اید).<br>
-                                ⚠️ <strong>نکته مهم مساوی:</strong> در بازی‌هایی که مساوی می‌شوند، ما امتیازِ «۱» نداریم! شما یا مساوی شدن بازی را تشخیص داده‌اید (حداقل ۲ امتیاز) یا تیمی را برنده دانسته‌اید که در این صورت ۰ امتیاز دریافت می‌کنید.</li>
-                                
-                                <li><strong style="color: #e74c3c;">طرح صفر امتیازی:</strong><br>در صورتی که پیش‌بینی شما با نتیجه واقعی مغایرت داشته باشد (مثلاً شما برد تیمی را پیش‌بینی کرده‌اید اما بازی مساوی شده یا حریف برده است) یا پیش‌بینی خود را در مهلت مقرر ثبت نکرده باشید.</li>
+                                ⚠️ <strong>نکته مهم مساوی:</strong> در بازی‌هایی که مساوی می‌شوند، ما امتیازِ «۱» نداریم! شما یا مساوی شدن بازی را تشخیص داده‌اید (حداقل ۲ امتیاز) یا ۰ امتیاز دریافت می‌کنید.</li>
+                                <li><strong style="color: #e74c3c;">طرح صفر امتیازی:</strong><br>در صورتی که پیش‌بینی شما با نتیجه واقعی کاملا مغایرت داشته باشد.</li>
                             </ul>
 
-                            <h5>۳. جدول رده‌بندی و شاخص وضعیت (Trend)</h5>
+                            <h5>۳. جدول رده‌بندی و شاخص وضعیت</h5>
                             <ul>
-                                <li>جدول رده‌بندی بلافاصله پس از اتمام بازی‌ها بروزرسانی می‌شود.</li>
-                                <li>در کنار نام شما در جدول، یک علامت گرافیکی قرار دارد که روند تغییرات شما را نسبت به بازی قبلی نشان می‌دهد:
-                                    <ul style="margin-top:5px; margin-bottom: 0;">
-                                        <li>🔺 <strong style="color: #2ecc71;">فلش سبز صعودی (▲):</strong> رتبه شما در جدول ارتقا یافته است.</li>
-                                        <li>🔻 <strong style="color: #e74c3c;">فلش قرمز نزولی (▼):</strong> رتبه شما در جدول پایین آمده است.</li>
-                                        <li>➖ <strong style="color: #95a5a6;">خط تیره خاکستری (-):</strong> رتبه شما بدون تغییر مانده است.</li>
-                                    </ul>
-                                </li>
+                                <li>🔺 <strong style="color: #2ecc71;">فلش سبز (▲):</strong> صعود رتبه</li>
+                                <li>🔻 <strong style="color: #e74c3c;">فلش قرمز (▼):</strong> سقوط رتبه</li>
+                                <li>➖ <strong style="color: #95a5a6;">خط تیره (-):</strong> بدون تغییر</li>
                             </ul>
 
-                            <h5>۴. فرمول ابداعی و عادلانه تقسیم جوایز مالی</h5>
-                            <p style="margin-bottom: 5px;">مبلغ کل جایزه در پایان تورنمنت بر اساس رتبه‌های برتر و دقیقاً طبق فرمول‌های ریاضی زیر تقسیم خواهد شد:</p>
+                            <h5>۴. فرمول تقسیم جوایز مالی</h5>
                             <ul>
-                                <li><strong>فرمول اول (بدون شریک در رتبه‌ها):</strong> اگر دقیقاً یک نفر اول و یک نفر دوم قرار بگیرد، کل جایزه به نسبت امتیازات کسب شده بین این دو نفر تقسیم می‌شود.</li>
-                                <li><strong>فرمول دوم (جنگ صدرنشینان):</strong> اگر دو یا چند نفر هم‌امتیاز در رتبه اول قرار بگیرند، کل مبلغ جایزه به صورت کاملاً مساوی فقط بین همان نفرات اول تقسیم می‌شود.</li>
-                                <li><strong>فرمول سوم (صدرنشین تکی و شرکای رتبه دوم):</strong> اگر دقیقاً یک نفر در رتبه اول باشد اما دو یا چند نفر هم‌امتیاز در رتبه دوم قرار گرفته باشند:
-                                    <ul style="margin-top:5px; margin-bottom: 0;">
-                                        <li>۵۵ درصد از کل مبلغ جایزه مستقیم به نفر اول تعلق می‌گیرد.</li>
-                                        <li>۴۵ درصد باقی‌مانده مساوی بین تمام نفرات دوم تقسیم خواهد شد.</li>
-                                    </ul>
-                                </li>
+                                <li><strong>فرمول اول:</strong> دقیقاً یک نفر اول و یک نفر دوم. (تقسیم به نسبت امتیازات)</li>
+                                <li><strong>فرمول دوم:</strong> چند نفر هم‌امتیاز در رتبه اول. (تقسیم مساوی بین نفرات اول)</li>
+                                <li><strong>فرمول سوم:</strong> یک نفر در رتبه اول و چند نفر در رتبه دوم. (۵۵٪ برای نفر اول و ۴۵٪ بین نفرات دوم)</li>
                             </ul>
-                            
-                            <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-weight: bold; margin-bottom: 10px; font-size: 0.9em; text-align: justify;">
-                                * نکته اصلی و مهم: در مورد هرگونه اعتراض یا مشکل تصمیم‌گیرنده نهایی با مدیر برگزاری خواهد بود و شرکت‌کنندگان به محض پرداخت ورودیه این قانون را می‌پذیرند.
-                            </div>
                         </div>
                     </details>
                 </div>
 
-                <!-- باکس بازی‌های رو به پایان (سمت چپ) -->
                 <div x-show="urgentMatches.length > 0" class="urgent-alert" style="flex: 1; min-width: 300px; margin-bottom: 0; display: none;">
                     <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1.1em;">⚠️ یادآوری مهم: فرصت رو به پایان!</h4>
                     <p style="margin: 0; font-size: 0.9em;">زمان پیش‌بینی مسابقات زیر کمتر از ۲۴ ساعت دیگر بسته خواهد شد:</p>
@@ -162,39 +143,65 @@
                         <h3 style="color: #2980b9; margin-bottom: 15px; font-size: 1.3em;">بازی‌ها و پیش‌بینی (آینده)</h3>
                         <div dir="rtl">
                             <template x-for="match in upcomingMatches" :key="match.id">
-                                <div class="match-card" :class="{'locked': match.isLocked}">
-                                    
-                                    <strong><span x-text="match.home_team"></span> ⚡ <span x-text="match.away_team"></span></strong>
-                                    
-                                    <div style="font-size: 0.75em; color: #555; margin-top: 5px;">
-                                        📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
+                                <div>
+                                    <!-- بنر شروع مسابقات قبل از بازی ایران و نیوزلند -->
+                                    <div x-show="match.home_team.includes('ایران') && match.away_team.includes('نیوزلند')"
+                                         style="background: linear-gradient(135deg, #1095c1 0%, #2980b9 100%); color: white; text-align: center; padding: 8px; border-radius: 8px; margin-bottom: 10px; font-weight: bold; font-size: 1.1em; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        🏆 شروع رسمی مسابقات 🏆
                                     </div>
 
-                                    <div x-show="match.isLocked" class="locked-msg-container">
-                                        <span class="locked-msg">🔒 زمان پیش‌بینی پایان یافته (در انتظار نتیجه)</span>
-                                    </div>
-                                    
-                                    <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText"></div>
-                                    
-                                    <div x-show="!match.isLocked" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px;">
+                                    <!-- ساختار جدید و بهینه‌سازی شده برای هر بازی (مطابق تصویر X2) -->
+                                    <div class="match-card" :class="{'locked': match.isLocked, 'predicted': match.hasPredicted}">
                                         
-                                        <div style="display: flex; gap: 5px; align-items: center;">
-                                            <input type="number" style="width: 60px; margin:0; text-align: center; padding: 5px;" min="0" x-model.number="match.predHome">
-                                            <input type="number" style="width: 60px; margin:0; text-align: center; padding: 5px;" min="0" x-model.number="match.predAway">
-                                            <button style="padding: 5px 12px; width: auto; margin:0; font-size: 0.85em;" @click="submitPrediction(match)">ثبت</button>
-                                            <span x-show="match.successMsg" class="success-checkmark">✔️ ثبت شد</span>
+                                        <!-- هدر بازی: تاریخ و اطلاعات سمت راست -->
+                                        <div style="text-align: right; font-size: 0.8em; color: #555; margin-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 8px;">
+                                            📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
                                         </div>
 
-                                        <div style="text-align: left; font-size: 0.8em; color: #7f8c8d; line-height: 1.2; max-width: 45%;">
-                                            <div x-show="getTop3Predictions(match).length > 0">نتایج پرتکرار کاربران:</div>
-                                            <div style="margin-top: 3px;" dir="rtl">
-                                                <template x-for="top in getTop3Predictions(match)" :key="top.result">
-                                                    <span class="top-pred-badge" x-text="top.result + ' ⟵ ' + top.count + ' نفر'"></span>
-                                                </template>
-                                                <span x-show="getTop3Predictions(match).length === 0" style="color: #ccc; font-style: italic;">هنوز پیش‌بینی ثبت نشده</span>
+                                        <!-- بدنه بازی: دوتکه (پیش‌بینی‌ها سمت چپ / ثبت سمت راست) -->
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                            
+                                            <!-- سمت چپ: نتایج پرتکرار -->
+                                            <div style="width: 40%; text-align: right; font-size: 0.8em; color: #7f8c8d; padding-left: 10px;">
+                                                <div x-show="getTop3Predictions(match).length > 0" style="margin-bottom: 5px;">نتایج پرتکرار کاربران:</div>
+                                                <div dir="rtl">
+                                                    <template x-for="top in getTop3Predictions(match)" :key="top.result">
+                                                        <div class="top-pred-badge" x-text="top.result + ' ⟵ ' + top.count + ' نفر'"></div>
+                                                    </template>
+                                                    <div x-show="getTop3Predictions(match).length === 0" style="color: #ccc; font-style: italic; text-align: center; padding-top: 10px;">هنوز پیش‌بینی ثبت نشده</div>
+                                                </div>
                                             </div>
+
+                                            <!-- سمت راست: نام تیم‌ها، شمارشگر و کادرهای ورود نتیجه -->
+                                            <div style="width: 60%; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                                                
+                                                <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText" style="margin: 0;"></div>
+                                                
+                                                <div x-show="match.isLocked" class="locked-msg-container" style="margin: 0; padding: 4px 8px;">
+                                                    <span class="locked-msg">🔒 زمان پیش‌بینی پایان یافته</span>
+                                                </div>
+
+                                                <strong style="font-size: 1.3em; color: #2c3e50;"><span x-text="match.home_team"></span> ⚡ <span x-text="match.away_team"></span></strong>
+
+                                                <div x-show="!match.isLocked" style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                                                    <span x-show="match.successMsg" class="success-checkmark">✔️</span>
+                                                    
+                                                    <!-- تغییر دکمه به ویرایش در صورت ثبت قبلی -->
+                                                    <button style="padding: 5px 15px; width: auto; margin:0; font-size: 0.9em;" 
+                                                            :style="match.hasPredicted ? 'background-color: #16a085; border-color: #12876f;' : ''"
+                                                            @click="submitPrediction(match)" 
+                                                            x-text="match.hasPredicted ? 'ویرایش' : 'ثبت'"></button>
+                                                    
+                                                    <!-- استایل کادرهای نتیجه مطابق تصویر X2 -->
+                                                    <div class="score-input-wrapper">
+                                                        <input type="number" min="0" x-model.number="match.predHome">
+                                                        <span style="color: #7f8c8d; font-weight: bold; padding: 0 2px;">-</span>
+                                                        <input type="number" min="0" x-model.number="match.predAway">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
                                         </div>
-                                        
                                     </div>
                                 </div>
                             </template>
@@ -328,6 +335,7 @@
                                 ...m, 
                                 predHome: savedPred ? savedPred.home : 0,
                                 predAway: savedPred ? savedPred.away : 0,
+                                hasPredicted: !!savedPred, // پارامتر جدید برای تشخیص پیش‌بینی قبلی
                                 isLocked: false, 
                                 countdownText: "",
                                 successMsg: false
@@ -377,7 +385,7 @@
                             if (m.status === 'finished') { m.isLocked = true; }
                             else if (m.timestamp && m.status === 'upcoming') {
                                 let diff = m.timestamp - nowTS;
-                                let lockDiff = diff - 900;
+                                let lockDiff = diff - 900; // قانون ۱۵ دقیقه (۹۰۰ ثانیه)
                                 if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; }
                                 else {
                                     m.isLocked = false;
@@ -421,6 +429,7 @@
                     .then(r => r.json()).then(d => {
                         if(d.status === "success") {
                             m.successMsg = true;
+                            m.hasPredicted = true; // فعال کردن حالت ویرایش و رنگ آبی
                             setTimeout(() => { m.successMsg = false; }, 3000);
                             fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
                         }

@@ -1,10 +1,22 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./football.db"
+
+# --- تغییرات اضافه شده برای اتصال به دیسک لیارا ---
+if not os.path.exists("data"):
+    os.makedirs("data")
+
+
+# مسیر دیتابیس به داخل پوشه data تغییر یافت
+SQLALCHEMY_DATABASE_URL = "sqlite:///./data/football.db"
+# -------------------------------------------------
+
+
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 class User(Base):
     __tablename__ = "users"
@@ -13,6 +25,7 @@ class User(Base):
     password = Column(String)
     score = Column(Integer, default=0)
     last_login = Column(String, default="هرگز")
+
 
 class Match(Base):
     __tablename__ = "matches"
@@ -28,6 +41,7 @@ class Match(Base):
     actual_home_goals = Column(Integer, nullable=True)
     actual_away_goals = Column(Integer, nullable=True)
 
+
 class Prediction(Base):
     __tablename__ = "predictions"
     id = Column(Integer, primary_key=True, index=True)
@@ -35,6 +49,7 @@ class Prediction(Base):
     match_id = Column(Integer, ForeignKey("matches.id"))
     predicted_home_goals = Column(Integer)
     predicted_away_goals = Column(Integer)
+
 
 # جدول جدید برای ثبت فعالیت‌های سیستم (Audit Log)
 class AuditLog(Base):

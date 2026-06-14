@@ -1,5 +1,13 @@
 {
   "platform": "python",
   "app": "footballpishbini",
-  "port": 8000
+  "port": 8000,
+  "disks": [
+    {
+      "name": "data",
+      "mountTo": "data"
+    }
+  ]
 }
+
+

@@ -9,10 +9,10 @@
         .container { max-width: 1200px; padding: 0 15px; }
         .auth-box { max-width: 400px; margin: 1rem auto; padding: 1.5rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; }
-        /* رنگ پس‌زمینه برای بازی‌هایی که پیش‌بینی شده‌اند */
+        .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; font-size: 1.1em; }
+        
+        /* رنگ پس‌زمینه آبی پاستلی برای بازی‌هایی که پیش‌بینی شده‌اند */
         .match-card.predicted { background-color: rgb(176, 224, 230); border-color: #9ccdd3; }
-        /* رنگ پس‌زمینه برای بازی‌های قفل شده */
         .match-card.locked { background-color: #f1f3f5; border-color: #dee2e6; opacity: 0.9; }
         .match-card.predicted.locked { background-color: #d1e8ea; }
         
@@ -46,10 +46,6 @@
         .rules-content h5 { margin-bottom: 5px; color: #2980b9; font-size: 1.05em; font-weight: bold; }
         .rules-content ul { margin-bottom: 15px; padding-right: 20px; }
         .rules-content li { margin-bottom: 5px; }
-        
-        /* استایل اختصاصی برای ورودی‌های بازی مطابق تصویر X2 */
-        .score-input-wrapper { display: flex; align-items: center; gap: 5px; background: white; border: 1px solid #ccc; border-radius: 5px; padding: 5px; }
-        .score-input-wrapper input { width: 45px !important; height: 40px !important; margin: 0 !important; text-align: center; font-size: 1.2em; font-weight: bold; padding: 0; border: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -59,7 +55,6 @@
             <h1 style="color: #2c3e50; margin: 0; font-size: 1.8em;">⚽ سیستم پیش‌بینی مسابقات ⚽</h1>
         </article>
 
-        <!-- بخش ورود / ثبت‌نام -->
         <div x-show="!isLoggedIn" class="auth-box">
             <div class="tabs">
                 <div class="tab" :class="{ 'active': authMode === 'login' }" @click="authMode = 'login'">ورود</div>
@@ -78,7 +73,6 @@
             </div>
         </div>
 
-        <!-- داشبورد کاربری -->
         <div x-show="isLoggedIn" style="display: none;">
             
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: flex-start;">
@@ -120,6 +114,10 @@
                                 <li><strong>فرمول دوم:</strong> چند نفر هم‌امتیاز در رتبه اول. (تقسیم مساوی بین نفرات اول)</li>
                                 <li><strong>فرمول سوم:</strong> یک نفر در رتبه اول و چند نفر در رتبه دوم. (۵۵٪ برای نفر اول و ۴۵٪ بین نفرات دوم)</li>
                             </ul>
+                            
+                            <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-weight: bold; margin-bottom: 10px; font-size: 0.9em; text-align: justify;">
+                                * نکته اصلی و مهم: در مورد هرگونه اعتراض یا مشکل تصمیم‌گیرنده نهایی با مدیر برگزاری خواهد بود و شرکت‌کنندگان به محض پرداخت ورودیه این قانون را می‌پذیرند.
+                            </div>
                         </div>
                     </details>
                 </div>
@@ -137,33 +135,27 @@
             </div>
 
             <div class="grid" style="grid-template-columns: 4fr 5fr; gap: 20px;">
-                <!-- ستون راست: لیست بازی‌های آینده -->
                 <div>
                     <article style="padding: 1rem;">
                         <h3 style="color: #2980b9; margin-bottom: 15px; font-size: 1.3em;">بازی‌ها و پیش‌بینی (آینده)</h3>
                         <div dir="rtl">
                             <template x-for="match in upcomingMatches" :key="match.id">
                                 <div>
-                                    <!-- بنر شروع مسابقات قبل از بازی ایران و نیوزلند -->
                                     <div x-show="match.home_team.includes('ایران') && match.away_team.includes('نیوزلند')"
                                          style="background: linear-gradient(135deg, #1095c1 0%, #2980b9 100%); color: white; text-align: center; padding: 8px; border-radius: 8px; margin-bottom: 10px; font-weight: bold; font-size: 1.1em; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                         🏆 شروع رسمی مسابقات 🏆
                                     </div>
 
-                                    <!-- ساختار جدید و بهینه‌سازی شده برای هر بازی (مطابق تصویر X2) -->
                                     <div class="match-card" :class="{'locked': match.isLocked, 'predicted': match.hasPredicted}">
                                         
-                                        <!-- هدر بازی: تاریخ و اطلاعات سمت راست -->
-                                        <div style="text-align: right; font-size: 0.8em; color: #555; margin-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 8px;">
+                                        <div style="text-align: right; font-size: 0.8em; color: #555; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 8px;">
                                             📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
                                         </div>
 
-                                        <!-- بدنه بازی: دوتکه (پیش‌بینی‌ها سمت چپ / ثبت سمت راست) -->
-                                        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                             
-                                            <!-- سمت چپ: نتایج پرتکرار -->
-                                            <div style="width: 40%; text-align: right; font-size: 0.8em; color: #7f8c8d; padding-left: 10px;">
-                                                <div x-show="getTop3Predictions(match).length > 0" style="margin-bottom: 5px;">نتایج پرتکرار کاربران:</div>
+                                            <div style="width: 38%; text-align: right; font-size: 0.8em; color: #7f8c8d; padding-left: 10px;">
+                                                <div x-show="getTop3Predictions(match).length > 0" style="margin-bottom: 8px;">نتایج پرتکرار کاربران:</div>
                                                 <div dir="rtl">
                                                     <template x-for="top in getTop3Predictions(match)" :key="top.result">
                                                         <div class="top-pred-badge" x-text="top.result + ' ⟵ ' + top.count + ' نفر'"></div>
@@ -172,35 +164,49 @@
                                                 </div>
                                             </div>
 
-                                            <!-- سمت راست: نام تیم‌ها، شمارشگر و کادرهای ورود نتیجه -->
-                                            <div style="width: 60%; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                                            <div style="width: 60%; background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; align-items: center;">
                                                 
-                                                <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText" style="margin: 0;"></div>
-                                                
-                                                <div x-show="match.isLocked" class="locked-msg-container" style="margin: 0; padding: 4px 8px;">
-                                                    <span class="locked-msg">🔒 زمان پیش‌بینی پایان یافته</span>
+                                                <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; margin-bottom: 10px;">
+                                                    <div style="text-align: left; font-size: 1.2em; font-weight: bold; color: #2c3e50;" x-text="match.home_team"></div>
+                                                    <div style="font-size: 1.2em; color: #f39c12;">⚡</div>
+                                                    <div style="text-align: right; font-size: 1.2em; font-weight: bold; color: #2c3e50;" x-text="match.away_team"></div>
                                                 </div>
 
-                                                <strong style="font-size: 1.3em; color: #2c3e50;"><span x-text="match.home_team"></span> ⚡ <span x-text="match.away_team"></span></strong>
-
-                                                <div x-show="!match.isLocked" style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
-                                                    <span x-show="match.successMsg" class="success-checkmark">✔️</span>
-                                                    
-                                                    <!-- تغییر دکمه به ویرایش در صورت ثبت قبلی -->
-                                                    <button style="padding: 5px 15px; width: auto; margin:0; font-size: 0.9em;" 
-                                                            :style="match.hasPredicted ? 'background-color: #16a085; border-color: #12876f;' : ''"
-                                                            @click="submitPrediction(match)" 
-                                                            x-text="match.hasPredicted ? 'ویرایش' : 'ثبت'"></button>
-                                                    
-                                                    <!-- استایل کادرهای نتیجه مطابق تصویر X2 -->
-                                                    <div class="score-input-wrapper">
-                                                        <input type="number" min="0" x-model.number="match.predHome">
-                                                        <span style="color: #7f8c8d; font-weight: bold; padding: 0 2px;">-</span>
-                                                        <input type="number" min="0" x-model.number="match.predAway">
+                                                <div x-show="!match.isLocked" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; margin-bottom: 12px;">
+                                                    <div style="display: flex; justify-content: flex-end;">
+                                                        <input type="number" min="0" x-model.number="match.predHome" style="width: 50px !important; height: 40px !important; text-align: center; font-size: 1.2em; font-weight: bold; margin: 0; padding: 0;">
+                                                    </div>
+                                                    <div style="font-size: 1.5em; color: #7f8c8d; font-weight: bold;">-</div>
+                                                    <div style="display: flex; justify-content: flex-start;">
+                                                        <input type="number" min="0" x-model.number="match.predAway" style="width: 50px !important; height: 40px !important; text-align: center; font-size: 1.2em; font-weight: bold; margin: 0; padding: 0;">
                                                     </div>
                                                 </div>
+
+                                                <div x-show="!match.isLocked" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                                    <span x-show="match.successMsg" class="success-checkmark">✔️</span>
+                                                    <button style="padding: 4px 20px; width: auto; font-size: 0.9em; margin: 0; border-radius: 4px;" 
+                                                            :style="match.hasPredicted ? 'background-color: #16a085; border-color: #12876f;' : 'background-color: #2980b9; border-color: #2471a3;'"
+                                                            @click="submitPrediction(match)" 
+                                                            x-text="match.hasPredicted ? 'ویرایش' : 'ثبت'"></button>
+                                                </div>
+
+                                                <div x-show="match.hasPredicted && !match.isLocked" style="font-size: 0.8em; color: #27ae60; font-weight: bold; background: rgba(255,255,255,0.8); padding: 5px 10px; border-radius: 4px; width: 100%; text-align: center; border: 1px dashed #a3e4d7;">
+                                                    پیش‌بینی ثبت شده شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
+                                                </div>
+
+                                                <div x-show="match.isLocked" class="locked-msg-container" style="width: 100%; justify-content: center; margin-top: 0;">
+                                                    <span class="locked-msg">🔒 زمان پیش‌بینی پایان یافته</span>
+                                                </div>
+                                                <div x-show="match.isLocked && match.hasPredicted" style="margin-top: 8px; font-size: 0.85em; color: #27ae60; font-weight: bold; text-align: center;">
+                                                    پیش‌بینی نهایی شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
+                                                </div>
+                                                <div x-show="match.isLocked && !match.hasPredicted" style="margin-top: 8px; font-size: 0.85em; color: #e74c3c; font-weight: bold; text-align: center;">
+                                                    پیش‌بینی ثبت نکرده‌اید!
+                                                </div>
+
+                                                <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText" style="margin-top: 10px;"></div>
+
                                             </div>
-                                            
                                         </div>
                                     </div>
                                 </div>
@@ -212,9 +218,7 @@
                     </article>
                 </div>
 
-                <!-- ستون چپ: رده‌بندی + بازی‌های برگزار شده -->
                 <div>
-                    <!-- ۱. جدول رده‌بندی -->
                     <article style="margin-bottom: 20px; padding: 1rem;">
                         <h3 style="margin-bottom: 15px; font-size: 1.3em;">جدول رده‌بندی 🏆</h3>
                         <div style="overflow-x: auto;">
@@ -248,20 +252,21 @@
                         </div>
                     </article>
 
-                    <!-- ۲. بازی‌های برگزار شده -->
                     <article style="padding: 1rem;">
                         <h3 style="color: #27ae60; margin-bottom: 15px; font-size: 1.3em;">بازی‌های برگزار شده 🏁</h3>
                         <div dir="rtl">
                             <template x-for="match in finishedMatches" :key="match.id">
                                 <div class="match-card locked">
                                     
-                                    <strong><span x-text="match.home_team"></span> ⚡ <span x-text="match.away_team"></span></strong>
+                                    <strong style="display: flex; justify-content: center; gap: 15px; font-size: 1.2em; color: #2c3e50;">
+                                        <span x-text="match.home_team"></span> <span style="color: #f39c12;">⚡</span> <span x-text="match.away_team"></span>
+                                    </strong>
                                     
-                                    <div style="font-size: 0.75em; color: #555; margin-top: 5px;">
+                                    <div style="text-align: center; font-size: 0.75em; color: #555; margin-top: 8px;">
                                         📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
                                     </div>
 
-                                    <div style="margin-top: 10px; display: inline-block;">
+                                    <div style="margin-top: 15px; text-align: center;">
                                         <span class="finished-score">
                                             نتیجه نهایی: <span x-text="match.actual_home_goals"></span> - <span x-text="match.actual_away_goals"></span>
                                         </span>
@@ -335,7 +340,9 @@
                                 ...m, 
                                 predHome: savedPred ? savedPred.home : 0,
                                 predAway: savedPred ? savedPred.away : 0,
-                                hasPredicted: !!savedPred, // پارامتر جدید برای تشخیص پیش‌بینی قبلی
+                                savedPredHome: savedPred ? savedPred.home : null, // مقادیر ذخیره شده دائمی
+                                savedPredAway: savedPred ? savedPred.away : null, // مقادیر ذخیره شده دائمی
+                                hasPredicted: !!savedPred,
                                 isLocked: false, 
                                 countdownText: "",
                                 successMsg: false
@@ -385,7 +392,7 @@
                             if (m.status === 'finished') { m.isLocked = true; }
                             else if (m.timestamp && m.status === 'upcoming') {
                                 let diff = m.timestamp - nowTS;
-                                let lockDiff = diff - 900; // قانون ۱۵ دقیقه (۹۰۰ ثانیه)
+                                let lockDiff = diff - 900; // قفل شدن فرم دقیقا 15 دقیقه (900 ثانیه) قبل از بازی
                                 if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; }
                                 else {
                                     m.isLocked = false;
@@ -429,7 +436,9 @@
                     .then(r => r.json()).then(d => {
                         if(d.status === "success") {
                             m.successMsg = true;
-                            m.hasPredicted = true; // فعال کردن حالت ویرایش و رنگ آبی
+                            m.hasPredicted = true;
+                            m.savedPredHome = m.predHome; // بروزرسانی عدد ذخیره شده
+                            m.savedPredAway = m.predAway; // بروزرسانی عدد ذخیره شده
                             setTimeout(() => { m.successMsg = false; }, 3000);
                             fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
                         }
@@ -441,4 +450,3 @@
     </script>
 </body>
 </html>
-

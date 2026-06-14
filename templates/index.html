@@ -33,6 +33,14 @@
         .rank-stable { color: #95a5a6; margin-left: 4px; font-weight: bold; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* استایل اختصاصی برای دکمه کشویی قوانین */
+        details.rules-accordion summary { font-size: 0.95em; font-weight: bold; color: #2c3e50; cursor: pointer; margin-bottom: 0; outline: none; }
+        details.rules-accordion summary::marker { color: #1095c1; }
+        .rules-content { font-size: 0.85em; color: #444; margin-top: 15px; line-height: 1.6; max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px dashed #d1e5e5; padding-top: 10px; }
+        .rules-content h5 { margin-bottom: 5px; color: #2980b9; font-size: 1.05em; font-weight: bold; }
+        .rules-content ul { margin-bottom: 15px; padding-right: 20px; }
+        .rules-content li { margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -42,6 +50,7 @@
             <h1 style="color: #2c3e50; margin: 0; font-size: 1.8em;">⚽ سیستم پیش‌بینی مسابقات ⚽</h1>
         </article>
 
+        <!-- بخش ورود / ثبت‌نام -->
         <div x-show="!isLoggedIn" class="auth-box">
             <div class="tabs">
                 <div class="tab" :class="{ 'active': authMode === 'login' }" @click="authMode = 'login'">ورود</div>
@@ -60,16 +69,81 @@
             </div>
         </div>
 
+        <!-- داشبورد کاربری -->
         <div x-show="isLoggedIn" style="display: none;">
             
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: stretch;">
+            <!-- ردیف بالای داشبورد: نمایش نام کاربری و اعلان‌ها در کنار هم -->
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: flex-start;">
                 
-                <div style="flex: 1; min-width: 250px; background-color: #eaf4f4; border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <strong style="font-size: 1.1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
-                    <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 5px 15px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.9em;">خروج</a>
+                <!-- باکس خوش‌آمدگویی و دکمه کشویی قوانین (سمت راست) -->
+                <div style="flex: 1; min-width: 300px; background-color: #eaf4f4; border-radius: 8px; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <strong style="font-size: 1.1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
+                        <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 5px 15px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.9em;">خروج</a>
+                    </div>
+                    
+                    <!-- بخش کشویی قوانین -->
+                    <details class="rules-accordion" style="margin-bottom: 0; background: white; border-radius: 5px; padding: 8px 12px; border: 1px solid #d1e5e5;">
+                        <summary>📜 مطالعه قوانین مسابقه و امتیازدهی</summary>
+                        <div class="rules-content">
+                            <h5>۱. مهلت ثبت و ویرایش پیش‌بینی‌ها</h5>
+                            <ul>
+                                <li>شما می‌توانید برای تمام بازی‌های آینده، پیش‌بینی خود را ثبت کنید یا تا قبل از بسته شدن فرم، بارها آن را ویرایش نمایید.</li>
+                                <li><strong>قانون زمان طلایی:</strong> مهلت ثبت یا ویرایش پیش‌بینی هر مسابقه، دقیقاً تا <strong>۱۵ دقیقه قبل از شروع رسمی بازی</strong> است. با عبور از این زمان، سیستم به صورت خودکار کادرهای ورود نتیجه را قفل خواهد کرد و هیچ تغییری مسموع نخواهد بود.</li>
+                            </ul>
+
+                            <h5>۲. سیستم هوشمند امتیازدهی (نحوه محاسبه برد، باخت و مساوی)</h5>
+                            <p style="margin-bottom: 5px;">پس از پایان هر مسابقه و درج نتیجه واقعی در سیستم، امتیاز شما دقیقاً بر اساس منطق زیر محاسبه می‌شود:</p>
+                            <ul>
+                                <li><strong>طرح ۳ امتیازی (شکار نتیجه دقیق):</strong><br>اگر تعداد گل‌های هر دو تیم را کاملاً درست حدس زده باشید.<br>
+                                <span style="color:gray">- حالت برد:</span> پیش‌بینی شما: ایران ۲ - ۰ مکزیک | نتیجه واقعی: ۲-۰<br>
+                                <span style="color:gray">- حالت مساوی:</span> پیش‌بینی شما: ایران ۱ - ۱ مکزیک | نتیجه واقعی: ۱-۱</li>
+                                
+                                <li><strong style="color: #27ae60;">طرح ۲ امتیازی (تفاضل گلِ درست یا حدس مساویِ غیردقیق):</strong><br>اگر جهت بازی (برنده) و اختلاف گل‌ها را درست حدس بزنید، اما تعداد گل‌ها فرق کند. <strong>همچنین اگر مساوی شدن بازی را درست حدس بزنید ولی تعداد گل‌ها اشتباه باشد، دقیقاً ۲ امتیاز می‌گیرید</strong> (چون تفاضل گل در هر دو حالت مساوی، «صفر» است).<br>
+                                <span style="color:gray">- حالت برد:</span> پیش‌بینی شما: ۲-۰ | نتیجه واقعی: ۳-۱ (در هر دو حالت تفاضل ۲ گل است).<br>
+                                <span style="color:gray">- حالت مساوی:</span> پیش‌بینی شما: ۰-۰ | نتیجه واقعی: ۲-۲ (مساوی را درست تشخیص دادید اما تعداد گل‌ها فرق داشت).</li>
+                                
+                                <li><strong>طرح ۱ امتیازی (فقط تشخیص برنده):</strong><br>اگر فقط تیم برنده را درست حدس زده باشید، اما تفاضل گل و نتیجه دقیق کاملاً اشتباه باشد.<br>
+                                <span style="color:gray">- مثال:</span> پیش‌بینی شما: ۱-۰ | نتیجه واقعی: ۳-۰ (فقط برد تیم میزبان را درست گفته‌اید).<br>
+                                ⚠️ <strong>نکته مهم مساوی:</strong> در بازی‌هایی که مساوی می‌شوند، ما امتیازِ «۱» نداریم! شما یا مساوی شدن بازی را تشخیص داده‌اید (حداقل ۲ امتیاز) یا تیمی را برنده دانسته‌اید که در این صورت ۰ امتیاز دریافت می‌کنید.</li>
+                                
+                                <li><strong style="color: #e74c3c;">طرح صفر امتیازی:</strong><br>در صورتی که پیش‌بینی شما با نتیجه واقعی مغایرت داشته باشد (مثلاً شما برد تیمی را پیش‌بینی کرده‌اید اما بازی مساوی شده یا حریف برده است) یا پیش‌بینی خود را در مهلت مقرر ثبت نکرده باشید.</li>
+                            </ul>
+
+                            <h5>۳. جدول رده‌بندی و شاخص وضعیت (Trend)</h5>
+                            <ul>
+                                <li>جدول رده‌بندی بلافاصله پس از اتمام بازی‌ها بروزرسانی می‌شود.</li>
+                                <li>در کنار نام شما در جدول، یک علامت گرافیکی قرار دارد که روند تغییرات شما را نسبت به بازی قبلی نشان می‌دهد:
+                                    <ul style="margin-top:5px; margin-bottom: 0;">
+                                        <li>🔺 <strong style="color: #2ecc71;">فلش سبز صعودی (▲):</strong> رتبه شما در جدول ارتقا یافته است.</li>
+                                        <li>🔻 <strong style="color: #e74c3c;">فلش قرمز نزولی (▼):</strong> رتبه شما در جدول پایین آمده است.</li>
+                                        <li>➖ <strong style="color: #95a5a6;">خط تیره خاکستری (-):</strong> رتبه شما بدون تغییر مانده است.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+
+                            <h5>۴. فرمول ابداعی و عادلانه تقسیم جوایز مالی</h5>
+                            <p style="margin-bottom: 5px;">مبلغ کل جایزه در پایان تورنمنت بر اساس رتبه‌های برتر و دقیقاً طبق فرمول‌های ریاضی زیر تقسیم خواهد شد:</p>
+                            <ul>
+                                <li><strong>فرمول اول (بدون شریک در رتبه‌ها):</strong> اگر دقیقاً یک نفر اول و یک نفر دوم قرار بگیرد، کل جایزه به نسبت امتیازات کسب شده بین این دو نفر تقسیم می‌شود.</li>
+                                <li><strong>فرمول دوم (جنگ صدرنشینان):</strong> اگر دو یا چند نفر هم‌امتیاز در رتبه اول قرار بگیرند، کل مبلغ جایزه به صورت کاملاً مساوی فقط بین همان نفرات اول تقسیم می‌شود.</li>
+                                <li><strong>فرمول سوم (صدرنشین تکی و شرکای رتبه دوم):</strong> اگر دقیقاً یک نفر در رتبه اول باشد اما دو یا چند نفر هم‌امتیاز در رتبه دوم قرار گرفته باشند:
+                                    <ul style="margin-top:5px; margin-bottom: 0;">
+                                        <li>۵۵ درصد از کل مبلغ جایزه مستقیم به نفر اول تعلق می‌گیرد.</li>
+                                        <li>۴۵ درصد باقی‌مانده مساوی بین تمام نفرات دوم تقسیم خواهد شد.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                            
+                            <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-weight: bold; margin-bottom: 10px; font-size: 0.9em; text-align: justify;">
+                                * نکته اصلی و مهم: در مورد هرگونه اعتراض یا مشکل تصمیم‌گیرنده نهایی با مدیر برگزاری خواهد بود و شرکت‌کنندگان به محض پرداخت ورودیه این قانون را می‌پذیرند.
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
-                <div x-show="urgentMatches.length > 0" class="urgent-alert" style="flex: 2; min-width: 300px; margin-bottom: 0; display: none;">
+                <!-- باکس بازی‌های رو به پایان (سمت چپ) -->
+                <div x-show="urgentMatches.length > 0" class="urgent-alert" style="flex: 1; min-width: 300px; margin-bottom: 0; display: none;">
                     <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1.1em;">⚠️ یادآوری مهم: فرصت رو به پایان!</h4>
                     <p style="margin: 0; font-size: 0.9em;">زمان پیش‌بینی مسابقات زیر کمتر از ۲۴ ساعت دیگر بسته خواهد شد:</p>
                     <div style="margin-top: 5px;">
@@ -82,6 +156,7 @@
             </div>
 
             <div class="grid" style="grid-template-columns: 4fr 5fr; gap: 20px;">
+                <!-- ستون راست: لیست بازی‌های آینده -->
                 <div>
                     <article style="padding: 1rem;">
                         <h3 style="color: #2980b9; margin-bottom: 15px; font-size: 1.3em;">بازی‌ها و پیش‌بینی (آینده)</h3>
@@ -130,7 +205,9 @@
                     </article>
                 </div>
 
+                <!-- ستون چپ: رده‌بندی + بازی‌های برگزار شده -->
                 <div>
+                    <!-- ۱. جدول رده‌بندی -->
                     <article style="margin-bottom: 20px; padding: 1rem;">
                         <h3 style="margin-bottom: 15px; font-size: 1.3em;">جدول رده‌بندی 🏆</h3>
                         <div style="overflow-x: auto;">
@@ -164,6 +241,7 @@
                         </div>
                     </article>
 
+                    <!-- ۲. بازی‌های برگزار شده -->
                     <article style="padding: 1rem;">
                         <h3 style="color: #27ae60; margin-bottom: 15px; font-size: 1.3em;">بازی‌های برگزار شده 🏁</h3>
                         <div dir="rtl">

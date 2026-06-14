@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
+from contextlib import asynccontextmanager
 import database as db
 import openpyxl
 import io
@@ -12,6 +13,7 @@ import shutil
 import jdatetime
 import pytz
 from datetime import datetime
+import uvicorn
 
 # --- سیستم بک‌آپ‌گیری خودکار سازگار با فضای ابری لیارا ---
 BACKUP_DIR = "data/backups"
@@ -31,12 +33,13 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
 scheduler.start()
 
-app = FastAPI(title="سیستم پیش‌بینی فوتبال")
-
-# --- ساخت خودکار جداول هنگام بالا آمدن سرور ---
-@app.on_event("startup")
-def startup_event():
+# --- ساخت خودکار جداول (روش جدید و استاندارد بدون اخطار) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     db.Base.metadata.create_all(bind=db.engine)
+    yield
+
+app = FastAPI(title="سیستم پیش‌بینی فوتبال", lifespan=lifespan)
 # -----------------------------------------------
 
 templates = Jinja2Templates(directory="templates")
@@ -56,7 +59,6 @@ def get_tehran_timestamp(j_date_str, time_str):
         return tehran_tz.localize(dt_jalali.togregorian()).timestamp()
     except Exception: return None
 
-# تابع کمکی برای ثبت لاگ (Audit Log)
 def log_action(db_session: Session, request: Request, user_name: str, action: str, details: str):
     ip = request.client.host if request.client else "Unknown"
     ua = request.headers.get("user-agent", "Unknown")
@@ -83,7 +85,6 @@ def get_matches(db_session: Session = Depends(get_db)):
 def get_users(db_session: Session = Depends(get_db)):
     return db_session.query(db.User).order_by(db.User.id.desc()).all()
 
-# مسیر دریافت لاگ‌ها برای پنل ادمین
 @app.get("/admin/logs")
 def get_audit_logs(db_session: Session = Depends(get_db)):
     return db_session.query(db.AuditLog).order_by(db.AuditLog.id.desc()).limit(300).all()
@@ -122,11 +123,9 @@ def get_all_predictions(db_session: Session = Depends(get_db)):
         if p.user_id in users: result[p.match_id].append({"user_name": users[p.user_id], "home": p.predicted_home_goals, "away": p.predicted_away_goals})
     return result
 
-# --- مسیر جدید برای دریافت پیش‌بینی‌های یک کاربر ---
 @app.get("/predictions/user/{user_id}")
 def get_user_predictions(user_id: int, db_session: Session = Depends(get_db)):
     return db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id).all()
-# --------------------------------------------------
 
 @app.post("/users/")
 def create_user(request: Request, name: str, password: str, db_session: Session = Depends(get_db)):
@@ -248,3 +247,8 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
             elif (actual_diff > 0 and pred_diff > 0) or (actual_diff < 0 and pred_diff < 0): user.score += 1
     db_session.commit()
     return {"status": "success"}
+
+# --- این بلاک اضافه شد تا سرور در لیارا روشن بماند ---
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+

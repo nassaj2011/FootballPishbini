@@ -29,6 +29,15 @@
         <div class="grid" style="grid-template-columns: 1fr 3fr; gap: 20px;">
             
             <div>
+                <div class="admin-card" style="background: #fff3cd; border: 1px solid #ffeeba;">
+                    <h3 style="font-size: 1.1em; border-bottom: 2px solid #ffeeba; padding-bottom: 10px; color: #856404; margin-bottom: 15px;">💰 تنظیم جایزه کل سیستم</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="font-size: 0.85em; color: #856404; font-weight: bold; margin-bottom: 0;">مبلغ کل جایزه (تومان):</label>
+                        <input type="number" x-model.number="totalPrize" placeholder="مثلاً 1000000" style="text-align: center; font-weight: bold; font-size: 1.2em; color: #d35400;">
+                        <button @click="updatePrize()" style="background-color: #27ae60; border: none; margin: 0; font-weight: bold;">ثبت مبلغ جایزه</button>
+                    </div>
+                </div>
+
                 <div class="admin-card" style="background: #eef2f5;">
                     <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px;">👤 وضعیت ورود کاربران</h3>
                     <ul class="user-log-list">
@@ -158,15 +167,15 @@
     <script>
         function adminApp() {
             return {
-                isReady: false, 
-                matches: [], 
-                usersList: [], 
-                logsList: [], // آرایه جدید برای ذخیره لاگ‌ها
-                selectedMatches: [], 
+                isReady: false,
+                matches: [],
+                usersList: [],
+                logsList: [], 
+                selectedMatches: [],
                 nHome: "", nAway: "", nDate: "", nTime: "", nStadium: "",
+                totalPrize: 0, // متغیر جدید برای ذخیره مبلغ جایزه
                 
                 initData() {
-                    // بررسی امنیت ورود ادمین
                     const savedUser = localStorage.getItem('footballUser');
                     if (!savedUser) { window.location.href = '/'; return; }
                     const user = JSON.parse(savedUser);
@@ -174,27 +183,39 @@
                     
                     this.isReady = true;
 
-                    // ۱. دریافت مسابقات
                     fetch('/matches/list').then(r => r.json()).then(d => {
                         this.matches = d.map(m => ({
-                            ...m, 
-                            actualHome: m.actual_home_goals !== null ? m.actual_home_goals : 0, 
+                            ...m,
+                            actualHome: m.actual_home_goals !== null ? m.actual_home_goals : 0,
                             actualAway: m.actual_away_goals !== null ? m.actual_away_goals : 0,
                             markAsFinished: m.status === 'finished'
                         }));
                         this.selectedMatches = [];
                     });
 
-                    // ۲. دریافت لیست کاربران برای ستون سمت چپ
                     fetch('/users/list').then(r => r.json()).then(d => this.usersList = d);
-
-                    // ۳. دریافت تاریخچه فعالیت‌ها برای جدول پایین صفحه
                     fetch('/admin/logs').then(r => r.json()).then(d => this.logsList = d);
+                    
+                    // دریافت مبلغ جایزه ذخیره شده در سیستم در هنگام لود شدن صفحه
+                    fetch('/admin/prize').then(r => r.json()).then(d => {
+                        this.totalPrize = d.total_prize;
+                    });
                 },
                 
-                logout() { 
-                    localStorage.removeItem('footballUser'); 
-                    window.location.href = '/'; 
+                // تابع جدید برای ارسال مبلغ جایزه به سرور
+                updatePrize() {
+                    if (this.totalPrize < 0) return alert("مبلغ جایزه نمی‌تواند عددی منفی باشد.");
+                    fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })
+                    .then(r => r.json()).then(d => {
+                        if(d.status === "success") {
+                            alert("مبلغ جایزه با موفقیت در سیستم ثبت شد و در جدول کاربران اعمال خواهد شد.");
+                        }
+                    });
+                },
+
+                logout() {
+                    localStorage.removeItem('footballUser');
+                    window.location.href = '/';
                 },
                 
                 toggleAll(e) {
@@ -220,32 +241,31 @@
                 
                 bulkDelete() {
                     if(!confirm(`آیا از حذف دائمی ${this.selectedMatches.length} مسابقه انتخاب شده مطمئن هستید؟`)) return;
-                    fetch(`/matches/bulk-delete`, { 
-                        method: 'POST', 
+                    fetch(`/matches/bulk-delete`, {
+                        method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_ids: this.selectedMatches.map(id => parseInt(id)) })
                     }).then(() => { alert("مسابقات انتخاب شده با موفقیت حذف شدند."); this.initData(); });
                 },
                 
                 bulkFinishMatches() {
-                    // فقط بازی‌هایی که تیک "پایان بازی" خورده‌اند پردازش می‌شوند
                     const resultsToSave = this.matches
                         .filter(m => m.markAsFinished)
-                        .map(m => ({ 
-                            match_id: m.id, 
-                            actual_home: parseInt(m.actualHome), 
-                            actual_away: parseInt(m.actualAway) 
+                        .map(m => ({
+                            match_id: m.id,
+                            actual_home: parseInt(m.actualHome),
+                            actual_away: parseInt(m.actualAway)
                         }));
                     
                     if (resultsToSave.length === 0) return alert("هیچ مسابقه‌ای برای ثبت نتیجه انتخاب نشده است. تیک «پایان بازی» را بزنید.");
                     
                     fetch(`/matches/bulk-finish`, {
-                        method: 'POST', 
+                        method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ results: resultsToSave })
-                    }).then(() => { 
-                        alert("نتایج با موفقیت ثبت شد و جدول رده‌بندی کاربران از نو محاسبه گردید."); 
-                        this.initData(); 
+                    }).then(() => {
+                        alert("نتایج با موفقیت ثبت شد و جدول رده‌بندی کاربران از نو محاسبه گردید.");
+                        this.initData();
                     });
                 }
             };
@@ -253,3 +273,4 @@
     </script>
 </body>
 </html>
+

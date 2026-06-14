@@ -3,8 +3,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
+from fps_scheduler_placeholder import BackgroundScheduler # Placeholder if needed, standard apscheduler used
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 import database as db
 import openpyxl
 import io
@@ -29,19 +31,23 @@ def backup_database():
         print(f"Backup failed: {e}")
 
 scheduler = BackgroundScheduler()
-# بک‌آپ‌گیری هر روز ساعت 3 بامداد انجام می‌شود
 scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
 scheduler.start()
 
-# --- ساخت خودکار جداول (روش جدید و استاندارد بدون اخطار) ---
+# --- ساخت خودکار جداول و اصلاح دیتابیس بدون از دست رفتن داده‌ها ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.Base.metadata.create_all(bind=db.engine)
+    # تزریق امن ستون جدید به دیتابیس موجود روی سرور
+    with db.engine.begin() as conn:
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN previous_rank INTEGER DEFAULT 1;"))
+        except Exception:
+            pass # اگر ستون از قبل وجود داشته باشد خطایی نمی‌دهد
     yield
-
-app = FastAPI(title="سیستم پیش‌بینی فوتبال", lifespan=lifespan)
 # -----------------------------------------------
 
+app = FastAPI(title="سیستم پیش‌بینی فوتبال", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 def get_db():
@@ -89,10 +95,31 @@ def get_users(db_session: Session = Depends(get_db)):
 def get_audit_logs(db_session: Session = Depends(get_db)):
     return db_session.query(db.AuditLog).order_by(db.AuditLog.id.desc()).limit(300).all()
 
+# دریافت میزان جایزه کل تنظیم شده
+@app.get("/admin/prize")
+def get_prize(db_session: Session = Depends(get_db)):
+    setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
+    return {"total_prize": float(setting.value) if setting else 0.0}
+
+# ثبت میزان جایزه جدید توسط ادمین
+@app.post("/admin/prize")
+def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
+    setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
+    if setting:
+        setting.value = str(total_prize)
+    else:
+        db_session.add(db.SystemSetting(key="total_prize", value=str(total_prize)))
+    db_session.commit()
+    return {"status": "success"}
+
 @app.get("/leaderboard/")
 def get_leaderboard(db_session: Session = Depends(get_db)):
     users = db_session.query(db.User).all()
     finished_matches = db_session.query(db.Match).filter(db.Match.status == "finished").all()
+    
+    prize_setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
+    total_prize = float(prize_setting.value) if prize_setting else 0.0
+
     leaderboard_data = []
    
     for u in users:
@@ -108,9 +135,67 @@ def get_leaderboard(db_session: Session = Depends(get_db)):
                 elif p_diff == a_diff: stats["diff"] += 1
                 elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0): stats["winner"] += 1
                 else: stats["wrong"] += 1
-        leaderboard_data.append({"id": u.id, "name": u.name, "score": u.score, **stats})
+        
+        prev_rank = getattr(u, 'previous_rank', 1)
+        if prev_rank is None: prev_rank = 1
+
+        leaderboard_data.append({
+            "id": u.id, "name": u.name, "score": u.score, 
+            "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats
+        })
        
     leaderboard_data.sort(key=lambda x: x["score"], reverse=True)
+    
+    # تعیین رتبه جدید و مشخص کردن نوع تغییر رتبه (فلش گرافیکی)
+    current_rank = 1
+    for i, row in enumerate(leaderboard_data):
+        if i > 0 and leaderboard_data[i]["score"] < leaderboard_data[i-1]["score"]:
+            current_rank = i + 1
+        row["rank"] = current_rank
+        
+        if row["rank"] < row["previous_rank"]: row["trend"] = "up"
+        elif row["rank"] > row["previous_rank"]: row["trend"] = "down"
+        else: row["trend"] = "stable"
+
+    # پیاده‌سازی منطق و فرمول‌های دقیق تقسیم جوایز کاربران
+    if total_prize > 0 and leaderboard_data:
+        from collections import defaultdict
+        rank_groups = defaultdict(list)
+        for row in leaderboard_data:
+            rank_groups[row["rank"]].append(row)
+        
+        first_place_users = rank_groups[1]
+        distinct_ranks = sorted(rank_groups.keys())
+        second_place_users = rank_groups[distinct_ranks[1]] if len(distinct_ranks) > 1 else []
+
+        # قانون ۲: بیش از یک نفر اول داریم -> تقسیم مساوی بین تمام نفرات اول
+        if len(first_place_users) >= 2:
+            share = total_prize / len(first_place_users)
+            for u in first_place_users:
+                u["prize"] = round(share, 2)
+        
+        elif len(first_place_users) == 1:
+            u1 = first_place_users[0]
+            
+            # قانون ۱: دقیقاً یک نفر اول و یک نفر دوم داریم -> تقسیم به نسبت امتیازات کل آن‌ها
+            if len(second_place_users) == 1:
+                u2 = second_place_users[0]
+                total_pts = u1["score"] + u2["score"]
+                if total_pts > 0:
+                    u1["prize"] = round((u1["score"] / total_pts) * total_prize, 2)
+                    u2["prize"] = round((u2["score"] / total_pts) * total_prize, 2)
+                else:
+                    u1["prize"] = u2["prize"] = round(total_prize / 2, 2)
+            
+            # قانون ۳: یک نفر اول و چند نفر دوم هم‌امتیاز داریم -> ۵۵٪ نفر اول و ۴۵٪ تقسیم مساوی بین نفرات دوم
+            elif len(second_place_users) >= 2:
+                u1["prize"] = round(0.55 * total_prize, 2)
+                share_45 = (0.45 * total_prize) / len(second_place_users)
+                for u in second_place_users:
+                    u["prize"] = round(share_45, 2)
+            else:
+                u1["prize"] = total_prize
+
     return leaderboard_data
 
 @app.get("/predictions/all")
@@ -224,6 +309,17 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
 
 @app.post("/matches/bulk-finish")
 def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(get_db)):
+    # ثبت رتبه‌های فعلی کاربران به عنوان رتبه قبلی قبل از بروزرسانی نهایی نتایج بازی جدید
+    all_users = db_session.query(db.User).all()
+    sorted_by_current = sorted(all_users, key=lambda x: x.score, reverse=True)
+    
+    current_rank = 1
+    for i, u in enumerate(sorted_by_current):
+        if i > 0 and sorted_by_current[i].score < sorted_by_current[i-1].score:
+            current_rank = i + 1
+        u.previous_rank = current_rank
+    db_session.commit()
+
     for item in req.results:
         match = db_session.query(db.Match).filter(db.Match.id == item.match_id).first()
         if match:
@@ -250,4 +346,3 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
-

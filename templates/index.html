@@ -7,7 +7,6 @@
     <style>
         body { font-family: Tahoma, Arial, sans-serif; background-color: #f4f7f6; font-size: 14px; }
         .container { max-width: 1200px; padding: 0 15px; }
-        /* فضای خالی فرم ورود کاهش یافت */
         .auth-box { max-width: 400px; margin: 1rem auto; padding: 1.5rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; font-size: 1.1em; }
         .match-card.locked { background-color: #f1f3f5; border-color: #dee2e6; opacity: 0.9; }
@@ -28,6 +27,12 @@
         
         .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-weight: bold; margin-left: 4px; margin-bottom: 4px;}
         .success-checkmark { color: #20c997; font-weight: bold; font-size: 0.85em; margin-right: 8px; animation: fadeIn 0.3s ease-in-out; }
+        
+        /* استایل فلش‌های گرافیکی رتبه */
+        .rank-up { color: #2ecc71; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
+        .rank-down { color: #e74c3c; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
+        .rank-stable { color: #95a5a6; margin-left: 4px; font-weight: bold; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -99,12 +104,11 @@
                                             <input type="number" style="width: 60px; margin:0; text-align: center; padding: 5px;" min="0" x-model.number="match.predHome">
                                             <input type="number" style="width: 60px; margin:0; text-align: center; padding: 5px;" min="0" x-model.number="match.predAway">
                                             <button style="padding: 5px 12px; width: auto; margin:0; font-size: 0.85em;" @click="submitPrediction(match)">ثبت</button>
-                                            
                                             <span x-show="match.successMsg" class="success-checkmark">✔️ ثبت شد</span>
                                         </div>
 
                                         <div style="text-align: left; font-size: 0.8em; color: #7f8c8d; line-height: 1.2; max-width: 45%;">
-                                            <div x-show="getTop3Predictions(match).length > 0">نتایج پرتکرار کابران:</div>
+                                            <div x-show="getTop3Predictions(match).length > 0">نتایج پرتکرار کاربران:</div>
                                             <div style="margin-top: 3px;" dir="rtl">
                                                 <template x-for="top in getTop3Predictions(match)" :key="top.result">
                                                     <span class="top-pred-badge" x-text="top.result + ' ⟵ ' + top.count + ' نفر'"></span>
@@ -114,7 +118,7 @@
                                         </div>
                                         
                                     </div>
-                                    </div>
+                                </div>
                             </template>
                             <template x-if="upcomingMatches.length === 0">
                                 <p style="color: gray; font-size: 0.9em; text-align: center;">در حال حاضر مسابقه‌ای در جریان نیست.</p>
@@ -130,14 +134,20 @@
                             <table class="striped leaderboard-table" style="margin: 0;">
                                 <thead>
                                     <tr>
-                                        <th>رتبه</th><th>کاربر</th><th>امتیاز کل</th><th>۳ امتیازی</th><th>۲ امتیازی</th><th>۱ امتیازی</th><th>غلط</th><th>ثبت‌نشده</th>
+                                        <th>رتبه</th><th>کاربر</th><th>جایزه (تومان)</th><th>امتیاز کل</th><th>۳ امتیاز</th><th>۲ امتیاز</th><th>۱ امتیاز</th><th>غلط</th><th>غایب</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template x-for="(user, index) in leaderboard" :key="user.id">
                                         <tr>
-                                            <td x-text="index + 1"></td>
-                                            <td><strong x-text="user.name"></strong></td>
+                                            <td x-text="user.rank"></td>
+                                            <td style="text-align: right; padding-right: 15px;">
+                                                <span x-show="user.trend === 'up'" class="rank-up" title="صعود رتبه">▲</span>
+                                                <span x-show="user.trend === 'down'" class="rank-down" title="سقوط رتبه">▼</span>
+                                                <span x-show="user.trend === 'stable'" class="rank-stable" title="بدون تغییر">-</span>
+                                                <strong x-text="user.name"></strong>
+                                            </td>
+                                            <td><strong x-text="user.prize > 0 ? user.prize.toLocaleString('fa-IR') : '۰'" style="color: #2980b9;"></strong></td>
                                             <td><strong x-text="user.score" style="color: #27ae60; font-size: 1.2em;"></strong></td>
                                             <td x-text="user.exact"></td>
                                             <td x-text="user.diff"></td>
@@ -190,7 +200,6 @@
                                             </template>
                                         </div>
                                     </div>
-
                                 </div>
                             </template>
                             <template x-if="finishedMatches.length === 0">
@@ -240,7 +249,7 @@
                                 predAway: savedPred ? savedPred.away : 0,
                                 isLocked: false, 
                                 countdownText: "",
-                                successMsg: false // متغیر مربوط به تیک سبز
+                                successMsg: false
                             };
                         });
                         this.startCountdown();
@@ -250,7 +259,6 @@
                     fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
                 },
 
-                // محاسبه ۳ پیش‌بینی پرتکرار به همراه نام تیم برنده
                 getTop3Predictions(match) {
                     const preds = this.allPredictions[match.id];
                     if (!preds || preds.length === 0) return [];
@@ -262,7 +270,6 @@
                         else if (p.away > p.home) winText = `برد ${match.away_team}`;
                         else winText = `مساوی`;
                         
-                        // ساخت رشته نهایی شامل نتیجه و برنده
                         const resultKey = `${p.home}-${p.away} (${winText})`;
                         counts[resultKey] = (counts[resultKey] || 0) + 1;
                     });
@@ -295,7 +302,7 @@
                                     m.isLocked = false;
                                     let d = Math.floor(lockDiff / 86400), h = Math.floor((lockDiff % 86400) / 3600);
                                     let min = Math.floor((lockDiff % 3600) / 60), sec = lockDiff % 60;
-                                    m.countdownText = `پایان مهلت: ${d} روز و ${h} ساعت و ${min} دقیقه و ${sec} ثانیه`;
+                                    m.countdownText = `${d} روز و ${h}:${min}:${sec}`;
                                 }
                             } else { m.isLocked = true; }
                         });
@@ -332,10 +339,8 @@
                     fetch(`/predictions/?user_id=${this.currentUser.id}&match_id=${m.id}&home_goals=${m.predHome}&away_goals=${m.predAway}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
                         if(d.status === "success") {
-                            // نمایش تیک سبز به جای alert
                             m.successMsg = true;
-                            setTimeout(() => { m.successMsg = false; }, 3000); // محو شدن بعد از ۳ ثانیه
-                            
+                            setTimeout(() => { m.successMsg = false; }, 3000);
                             fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
                         }
                         else alert("خطا: " + (d.detail || ""));
@@ -346,4 +351,3 @@
     </script>
 </body>
 </html>
-

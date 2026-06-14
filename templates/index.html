@@ -28,7 +28,6 @@
         .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-weight: bold; margin-left: 4px; margin-bottom: 4px;}
         .success-checkmark { color: #20c997; font-weight: bold; font-size: 0.85em; margin-right: 8px; animation: fadeIn 0.3s ease-in-out; }
         
-        /* استایل فلش‌های گرافیکی رتبه */
         .rank-up { color: #2ecc71; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
         .rank-down { color: #e74c3c; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
         .rank-stable { color: #95a5a6; margin-left: 4px; font-weight: bold; }
@@ -63,19 +62,23 @@
 
         <div x-show="isLoggedIn" style="display: none;">
             
-            <div style="background-color: #eaf4f4; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                <strong style="font-size: 1.1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
-                <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 5px 15px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.9em;">خروج</a>
-            </div>
-
-            <div x-show="urgentMatches.length > 0" class="urgent-alert" style="display: none;">
-                <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1.1em;">⚠️ یادآوری مهم: فرصت رو به پایان!</h4>
-                <p style="margin: 0; font-size: 0.9em;">زمان پیش‌بینی مسابقات زیر کمتر از ۲۴ ساعت دیگر بسته خواهد شد:</p>
-                <div style="margin-top: 5px;">
-                    <template x-for="um in urgentMatches" :key="um.id">
-                        <span class="urgent-match-badge" x-text="um.home_team + ' ⚡ ' + um.away_team"></span>
-                    </template>
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: stretch;">
+                
+                <div style="flex: 1; min-width: 250px; background-color: #eaf4f4; border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <strong style="font-size: 1.1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
+                    <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 5px 15px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.9em;">خروج</a>
                 </div>
+
+                <div x-show="urgentMatches.length > 0" class="urgent-alert" style="flex: 2; min-width: 300px; margin-bottom: 0; display: none;">
+                    <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1.1em;">⚠️ یادآوری مهم: فرصت رو به پایان!</h4>
+                    <p style="margin: 0; font-size: 0.9em;">زمان پیش‌بینی مسابقات زیر کمتر از ۲۴ ساعت دیگر بسته خواهد شد:</p>
+                    <div style="margin-top: 5px;">
+                        <template x-for="um in urgentMatches" :key="um.id">
+                            <span class="urgent-match-badge" x-text="um.home_team + ' ⚡ ' + um.away_team"></span>
+                        </template>
+                    </div>
+                </div>
+
             </div>
 
             <div class="grid" style="grid-template-columns: 4fr 5fr; gap: 20px;">
@@ -351,3 +354,4 @@
     </script>
 </body>
 </html>
+

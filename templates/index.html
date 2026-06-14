@@ -11,7 +11,6 @@
         
         .match-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; font-size: 1.1em; }
         
-        /* رنگ پس‌زمینه آبی پاستلی برای بازی‌هایی که پیش‌بینی شده‌اند */
         .match-card.predicted { background-color: rgb(176, 224, 230); border-color: #9ccdd3; }
         .match-card.locked { background-color: #f1f3f5; border-color: #dee2e6; opacity: 0.9; }
         .match-card.predicted.locked { background-color: #d1e8ea; }
@@ -166,23 +165,19 @@
 
                                             <div style="width: 60%; background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; align-items: center;">
                                                 
-                                                <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; margin-bottom: 10px;">
-                                                    <div style="text-align: left; font-size: 1.2em; font-weight: bold; color: #2c3e50;" x-text="match.home_team"></div>
+                                                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; width: 100%; margin-bottom: 10px; flex-wrap: nowrap;">
+                                                    <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50; text-align: left;" x-text="match.home_team"></div>
                                                     <div style="font-size: 1.2em; color: #f39c12;">⚡</div>
-                                                    <div style="text-align: right; font-size: 1.2em; font-weight: bold; color: #2c3e50;" x-text="match.away_team"></div>
+                                                    <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50; text-align: right;" x-text="match.away_team"></div>
                                                 </div>
 
-                                                <div x-show="!match.isLocked" style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; margin-bottom: 12px;">
-                                                    <div style="display: flex; justify-content: flex-end;">
-                                                        <input type="number" min="0" x-model.number="match.predHome" style="width: 50px !important; height: 40px !important; text-align: center; font-size: 1.2em; font-weight: bold; margin: 0; padding: 0;">
-                                                    </div>
-                                                    <div style="font-size: 1.5em; color: #7f8c8d; font-weight: bold;">-</div>
-                                                    <div style="display: flex; justify-content: flex-start;">
-                                                        <input type="number" min="0" x-model.number="match.predAway" style="width: 50px !important; height: 40px !important; text-align: center; font-size: 1.2em; font-weight: bold; margin: 0; padding: 0;">
-                                                    </div>
+                                                <div x-show="!match.isLocked" style="display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; margin-bottom: 12px; flex-wrap: nowrap;">
+                                                    <input type="number" min="0" x-model.number="match.predHome" style="width: 55px !important; height: 40px !important; text-align: center; font-size: 1.2em; font-weight: bold; margin: 0; padding: 0; flex-shrink: 0;">
+                                                    <div style="font-size: 1.5em; color: #7f8c8d; font-weight: bold; line-height: 1; padding-bottom: 5px;">-</div>
+                                                    <input type="number" min="0" x-model.number="match.predAway" style="width: 55px !important; height: 40px !important; text-align: center; font-size: 1.2em; font-weight: bold; margin: 0; padding: 0; flex-shrink: 0;">
                                                 </div>
 
-                                                <div x-show="!match.isLocked" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                                <div x-show="!match.isLocked" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; width: 100%;">
                                                     <span x-show="match.successMsg" class="success-checkmark">✔️</span>
                                                     <button style="padding: 4px 20px; width: auto; font-size: 0.9em; margin: 0; border-radius: 4px;" 
                                                             :style="match.hasPredicted ? 'background-color: #16a085; border-color: #12876f;' : 'background-color: #2980b9; border-color: #2471a3;'"
@@ -340,8 +335,8 @@
                                 ...m, 
                                 predHome: savedPred ? savedPred.home : 0,
                                 predAway: savedPred ? savedPred.away : 0,
-                                savedPredHome: savedPred ? savedPred.home : null, // مقادیر ذخیره شده دائمی
-                                savedPredAway: savedPred ? savedPred.away : null, // مقادیر ذخیره شده دائمی
+                                savedPredHome: savedPred ? savedPred.home : null, 
+                                savedPredAway: savedPred ? savedPred.away : null, 
                                 hasPredicted: !!savedPred,
                                 isLocked: false, 
                                 countdownText: "",
@@ -392,7 +387,7 @@
                             if (m.status === 'finished') { m.isLocked = true; }
                             else if (m.timestamp && m.status === 'upcoming') {
                                 let diff = m.timestamp - nowTS;
-                                let lockDiff = diff - 900; // قفل شدن فرم دقیقا 15 دقیقه (900 ثانیه) قبل از بازی
+                                let lockDiff = diff - 900; 
                                 if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; }
                                 else {
                                     m.isLocked = false;
@@ -437,8 +432,8 @@
                         if(d.status === "success") {
                             m.successMsg = true;
                             m.hasPredicted = true;
-                            m.savedPredHome = m.predHome; // بروزرسانی عدد ذخیره شده
-                            m.savedPredAway = m.predAway; // بروزرسانی عدد ذخیره شده
+                            m.savedPredHome = m.predHome; 
+                            m.savedPredAway = m.predAway; 
                             setTimeout(() => { m.successMsg = false; }, 3000);
                             fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
                         }

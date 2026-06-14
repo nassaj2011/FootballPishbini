@@ -13,15 +13,16 @@ import jdatetime
 import pytz
 from datetime import datetime
 
-# --- سیستم بک‌آپ‌گیری خودکار (روزانه) ---
-if not os.path.exists("backups"):
-    os.makedirs("backups")
+# --- سیستم بک‌آپ‌گیری خودکار سازگار با فضای ابری لیارا ---
+BACKUP_DIR = "data/backups"
+if not os.path.exists(BACKUP_DIR):
+    os.makedirs(BACKUP_DIR)
 
 def backup_database():
     try:
         now_str = jdatetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-        shutil.copy2("football.db", f"backups/football_backup_{now_str}.db")
-        print(f"Backup created: football_backup_{now_str}.db")
+        shutil.copy2("data/football.db", f"{BACKUP_DIR}/football_backup_{now_str}.db")
+        print(f"Backup created: {BACKUP_DIR}/football_backup_{now_str}.db")
     except Exception as e:
         print(f"Backup failed: {e}")
 
@@ -32,11 +33,11 @@ scheduler.start()
 
 app = FastAPI(title="سیستم پیش‌بینی فوتبال")
 
-# --- کد اضافه شده برای ساخت خودکار جداول ---
+# --- ساخت خودکار جداول هنگام بالا آمدن سرور ---
 @app.on_event("startup")
 def startup_event():
     db.Base.metadata.create_all(bind=db.engine)
-# ------------------------------------------
+# -----------------------------------------------
 
 templates = Jinja2Templates(directory="templates")
 
@@ -44,7 +45,6 @@ def get_db():
     db_session = db.SessionLocal()
     try: yield db_session
     finally: db_session.close()
-
 
 def get_tehran_timestamp(j_date_str, time_str):
     try:
@@ -93,7 +93,7 @@ def get_leaderboard(db_session: Session = Depends(get_db)):
     users = db_session.query(db.User).all()
     finished_matches = db_session.query(db.Match).filter(db.Match.status == "finished").all()
     leaderboard_data = []
-    
+   
     for u in users:
         stats = {"exact": 0, "diff": 0, "winner": 0, "wrong": 0, "missed": 0}
         preds = {p.match_id: p for p in db_session.query(db.Prediction).filter(db.Prediction.user_id == u.id).all()}
@@ -108,7 +108,7 @@ def get_leaderboard(db_session: Session = Depends(get_db)):
                 elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0): stats["winner"] += 1
                 else: stats["wrong"] += 1
         leaderboard_data.append({"id": u.id, "name": u.name, "score": u.score, **stats})
-        
+       
     leaderboard_data.sort(key=lambda x: x["score"], reverse=True)
     return leaderboard_data
 
@@ -122,6 +122,12 @@ def get_all_predictions(db_session: Session = Depends(get_db)):
         if p.user_id in users: result[p.match_id].append({"user_name": users[p.user_id], "home": p.predicted_home_goals, "away": p.predicted_away_goals})
     return result
 
+# --- مسیر جدید برای دریافت پیش‌بینی‌های یک کاربر ---
+@app.get("/predictions/user/{user_id}")
+def get_user_predictions(user_id: int, db_session: Session = Depends(get_db)):
+    return db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id).all()
+# --------------------------------------------------
+
 @app.post("/users/")
 def create_user(request: Request, name: str, password: str, db_session: Session = Depends(get_db)):
     if db_session.query(db.User).filter(db.User.name == name).first(): raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است")
@@ -134,17 +140,17 @@ def create_user(request: Request, name: str, password: str, db_session: Session 
 
 @app.post("/login/")
 def login_user(request: Request, name: str, password: str, db_session: Session = Depends(get_db)):
-    if name == "admin" and password == "manhastam": 
+    if name == "admin" and password == "manhastam":
         log_action(db_session, request, "مدیریت", "ورود ادمین", "ورود به پنل مدیریت")
         return {"status": "success", "user_id": 0, "name": "مدیریت", "is_admin": True}
-        
+       
     user = db_session.query(db.User).filter(db.User.name == name).first()
     if not user or user.password != password: raise HTTPException(status_code=400, detail="نام کاربری یا رمز عبور اشتباه است")
-    
+   
     user.last_login = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M")
     db_session.commit()
     log_action(db_session, request, user.name, "ورود کاربر", "ورود موفق به سیستم")
-    
+   
     return {"status": "success", "user_id": user.id, "name": user.name, "is_admin": False}
 
 @app.post("/matches/")
@@ -202,11 +208,11 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
     user_name = user.name if user else "Unknown"
 
     pred = db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id, db.Prediction.match_id == match_id).first()
-    if pred: 
+    if pred:
         pred.predicted_home_goals = home_goals
         pred.predicted_away_goals = away_goals
         action = "ویرایش پیش‌بینی"
-    else: 
+    else:
         db_session.add(db.Prediction(user_id=user_id, match_id=match_id, predicted_home_goals=home_goals, predicted_away_goals=away_goals))
         action = "ثبت پیش‌بینی جدید"
         
@@ -221,7 +227,7 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
 def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(get_db)):
     for item in req.results:
         match = db_session.query(db.Match).filter(db.Match.id == item.match_id).first()
-        if match: 
+        if match:
             match.actual_home_goals = item.actual_home; match.actual_away_goals = item.actual_away; match.status = "finished"
     db_session.commit()
     

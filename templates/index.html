@@ -211,13 +211,12 @@
             </div>
         </div>
     </main>
-
-    <script>
+<script>
         function footballApp() {
             return {
                 isLoggedIn: false, authMode: 'login', currentUser: { id: null, name: "" },
                 loginUsername: "", loginPassword: "", regUsername: "", regPassword: "", regConfirm: "",
-                matches: [], leaderboard: [], urgentMatches: [], timerInterval: null, 
+                matches: [], leaderboard: [], urgentMatches: [], timerInterval: null,
                 allPredictions: {}, openPredictionMatchId: null,
                 
                 get upcomingMatches() { return this.matches.filter(m => m.status !== 'finished'); },
@@ -232,10 +231,32 @@
                     }
                     if (!this.isLoggedIn) return;
 
-                    fetch('/matches/list').then(r => r.json()).then(data => {
-                        this.matches = data.map(m => ({...m, predHome: 0, predAway: 0, isLocked: false, countdownText: ""}));
+                    // --- تغییرات اصلی اینجاست: دریافت همزمان بازی‌ها و پیش‌بینی‌های کاربر ---
+                    Promise.all([
+                        fetch('/matches/list').then(r => r.json()),
+                        fetch(`/predictions/user/${this.currentUser.id}`).then(r => r.json())
+                    ]).then(([matchesData, userPredsData]) => {
+                        
+                        // ساخت یک لیست جستجوی سریع از پیش‌بینی‌های کاربر
+                        const userPredsMap = {};
+                        userPredsData.forEach(p => {
+                            userPredsMap[p.match_id] = { home: p.predicted_home_goals, away: p.predicted_away_goals };
+                        });
+
+                        // مقداردهی بازی‌ها همراه با پیش‌بینی‌های از قبل ثبت شده
+                        this.matches = matchesData.map(m => {
+                            const savedPred = userPredsMap[m.id];
+                            return {
+                                ...m, 
+                                predHome: savedPred ? savedPred.home : 0, // اگر پیش‌بینی داشت عدد خودش، وگرنه صفر
+                                predAway: savedPred ? savedPred.away : 0, // اگر پیش‌بینی داشت عدد خودش، وگرنه صفر
+                                isLocked: false, 
+                                countdownText: ""
+                            };
+                        });
                         this.startCountdown();
                     });
+                    // -----------------------------------------------------------------
                     
                     fetch('/leaderboard/').then(r => r.json()).then(data => this.leaderboard = data);
                     fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
@@ -271,13 +292,13 @@
                 startCountdown() {
                     if (this.timerInterval) clearInterval(this.timerInterval);
                     this.timerInterval = setInterval(() => {
-                        const nowTS = Math.floor(Date.now() / 1000); 
+                        const nowTS = Math.floor(Date.now() / 1000);
                         this.matches.forEach(m => {
-                            if (m.status === 'finished') { m.isLocked = true; } 
+                            if (m.status === 'finished') { m.isLocked = true; }
                             else if (m.timestamp && m.status === 'upcoming') {
                                 let diff = m.timestamp - nowTS;
-                                let lockDiff = diff - 900; 
-                                if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; } 
+                                let lockDiff = diff - 900;
+                                if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; }
                                 else {
                                     m.isLocked = false;
                                     let d = Math.floor(lockDiff / 86400), h = Math.floor((lockDiff % 86400) / 3600);
@@ -293,10 +314,10 @@
                 login() {
                     fetch(`/login/?name=${this.loginUsername}&password=${this.loginPassword}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") { 
+                        if(d.status === "success") {
                             const uData = {id: d.user_id, name: d.name, is_admin: d.is_admin || false};
-                            localStorage.setItem('footballUser', JSON.stringify(uData)); 
-                            if(uData.is_admin) { window.location.href = '/admin'; } 
+                            localStorage.setItem('footballUser', JSON.stringify(uData));
+                            if(uData.is_admin) { window.location.href = '/admin'; }
                             else { this.currentUser = uData; this.isLoggedIn = true; this.initData(); }
                         } else alert("خطا: اطلاعات ورود اشتباه است");
                     });
@@ -305,10 +326,10 @@
                     if(this.regPassword !== this.regConfirm) return alert("رمز عبور تطابق ندارد!");
                     fetch(`/users/?name=${this.regUsername}&password=${this.regPassword}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") { 
+                        if(d.status === "success") {
                             const uData = {id: d.user_id, name: d.name, is_admin: false};
-                            localStorage.setItem('footballUser', JSON.stringify(uData)); 
-                            this.currentUser = uData; this.isLoggedIn = true; this.initData(); 
+                            localStorage.setItem('footballUser', JSON.stringify(uData));
+                            this.currentUser = uData; this.isLoggedIn = true; this.initData();
                         } else alert("خطا در ثبت‌نام");
                     });
                 },
@@ -318,10 +339,10 @@
                     if (m.isLocked) return alert("زمان ثبت پیش‌بینی تمام شده است!");
                     fetch(`/predictions/?user_id=${this.currentUser.id}&match_id=${m.id}&home_goals=${m.predHome}&away_goals=${m.predAway}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") { 
-                            alert("پیش‌بینی ثبت شد!"); 
-                            fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data); 
-                        } 
+                        if(d.status === "success") {
+                            alert("پیش‌بینی ثبت شد!");
+                            fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
+                        }
                         else alert("خطا: " + (d.detail || ""));
                     });
                 }

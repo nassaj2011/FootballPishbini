@@ -248,7 +248,6 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
     db_session.commit()
     return {"status": "success"}
 
-# --- این بلاک اضافه شد تا سرور در لیارا روشن بماند ---
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
 

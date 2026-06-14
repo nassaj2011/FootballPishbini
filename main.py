@@ -3,7 +3,6 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
-from fps_scheduler_placeholder import BackgroundScheduler # Placeholder if needed, standard apscheduler used
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from sqlalchemy import text

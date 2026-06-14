@@ -16,6 +16,14 @@
         .user-log-list li { padding: 8px 0; border-bottom: 1px dashed #ddd; display: flex; justify-content: space-between; }
         .audit-table th, .audit-table td { font-size: 0.85em; padding: 10px; text-align: right; vertical-align: middle; border-bottom: 1px solid #eee;}
         .audit-table th { font-weight: bold; color: #2c3e50; }
+        
+        /* استایل کشویی پیش‌بینی‌های کاربران */
+        details.user-pred-box { margin-bottom: 8px; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; }
+        details.user-pred-box summary { font-weight: bold; cursor: pointer; color: #2c3e50; font-size: 0.9em; outline: none; margin-bottom: 0; list-style-type: none; display: flex; justify-content: space-between; align-items: center;}
+        details.user-pred-box summary::-webkit-details-marker { display: none; }
+        .pred-badge { background: #1095c1; color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.8em; }
+        .pred-items { font-size: 0.85em; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; max-height: 200px; overflow-y: auto; }
+        .pred-item { display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding: 5px 0; }
     </style>
 </head>
 <body style="background-color: #fcfcfc; display: none;" :style="isReady ? 'display: block;' : ''" x-data="adminApp()" x-init="initData()">
@@ -28,7 +36,9 @@
 
         <div class="grid" style="grid-template-columns: 1fr 3fr; gap: 20px;">
             
+            <!-- ====== ستون سمت راست ====== -->
             <div>
+                <!-- باکس تنظیم جایزه -->
                 <div class="admin-card" style="background: #fff3cd; border: 1px solid #ffeeba;">
                     <h3 style="font-size: 1.1em; border-bottom: 2px solid #ffeeba; padding-bottom: 10px; color: #856404; margin-bottom: 15px;">💰 تنظیم جایزه کل سیستم</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -38,47 +48,59 @@
                     </div>
                 </div>
 
+                <!-- باکس پیش‌بینی‌های کاربران (جدید) -->
+                <div class="admin-card" style="padding: 1rem;">
+                    <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px;">📊 پیش‌بینی‌های کاربران</h3>
+                    <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                        <template x-for="u in usersList" :key="u.id">
+                            <details class="user-pred-box">
+                                <summary>
+                                    <span x-text="'👤 ' + u.name"></span>
+                                    <span class="pred-badge" x-text="(userPredictions[u.name] || []).length + ' مسابقه'" title="تعداد پیش‌بینی‌های ثبت شده"></span>
+                                </summary>
+                                <div class="pred-items">
+                                    <template x-if="userPredictions[u.name] && userPredictions[u.name].length > 0">
+                                        <ul style="list-style: none; padding: 0; margin: 0;">
+                                            <template x-for="p in userPredictions[u.name]">
+                                                <li class="pred-item">
+                                                    <span x-text="p.matchName" style="color: #555;"></span>
+                                                    <strong dir="ltr" style="color: #d35400; background: #fff3cd; padding: 2px 6px; border-radius: 4px;" x-text="p.predHome + ' - ' + p.predAway"></strong>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                    <template x-if="!userPredictions[u.name] || userPredictions[u.name].length === 0">
+                                        <div style="text-align: center; color: gray; padding: 5px;">پیش‌بینی ثبت نکرده است.</div>
+                                    </template>
+                                </div>
+                            </details>
+                        </template>
+                        <template x-if="usersList.length === 0">
+                            <p style="text-align: center; color: gray; font-size: 0.9em;">کاربری یافت نشد.</p>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- باکس وضعیت کاربران -->
                 <div class="admin-card" style="background: #eef2f5;">
-                    <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px;">👤 وضعیت ورود کاربران</h3>
+                    <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px;">🕒 آخرین ورود کاربران</h3>
                     <ul class="user-log-list">
                         <template x-for="u in usersList" :key="u.id">
                             <li>
                                 <strong><span x-text="u.name"></span></strong>
-                                <span style="color: #7f8c8d; font-size: 0.9em;" x-text="u.last_login"></span>
+                                <span style="color: #7f8c8d; font-size: 0.85em;" x-text="u.last_login"></span>
                             </li>
-                        </template>
-                        <template x-if="usersList.length === 0">
-                            <li style="color: gray; justify-content: center;">هنوز کاربری ثبت نام نکرده است</li>
                         </template>
                     </ul>
                 </div>
             </div>
 
+            <!-- ====== ستون سمت چپ ====== -->
             <div>
-                <div class="admin-card">
-                    <h3>➕ ایجاد مسابقه جدید (دستی)</h3>
-                    <div class="grid">
-                        <input type="text" placeholder="میزبان" x-model="nHome">
-                        <input type="text" placeholder="میهمان" x-model="nAway">
-                        <input type="text" placeholder="تاریخ 1403/05/12" x-model="nDate">
-                        <input type="text" placeholder="ساعت 18:30" x-model="nTime">
-                        <input type="text" placeholder="ورزشگاه" x-model="nStadium">
-                        <button @click="createMatch()" style="background-color: #27ae60; border: none;">ثبت در سیستم</button>
-                    </div>
-                </div>
-
-                <div class="admin-card" style="background-color: #f8f9fa; border: 2px dashed #ccc;">
-                    <h3>📂 بارگذاری گروهی بازی‌ها (Excel)</h3>
-                    <p style="font-size: 0.85em; color: gray; margin-bottom: 10px;">ستون‌ها به ترتیب: میزبان | میهمان | تاریخ | ساعت | ورزشگاه | <strong>نام گروه (ستون ۶)</strong></p>
-                    <div class="grid" style="align-items: center;">
-                        <input type="file" id="excelFile" accept=".xlsx, .xls">
-                        <button @click="uploadExcel()" style="background-color: #8e44ad; border: none;">بارگذاری و ثبت خودکار</button>
-                    </div>
-                </div>
-
+                <!-- لیست مسابقات به بالاترین قسمت منتقل شد -->
                 <div class="admin-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                        <h3 style="margin: 0;">📋 لیست مسابقات و ثبت نتایج</h3>
+                        <h3 style="margin: 0;">📋 لیست مسابقات و ثبت نتایج نهایی</h3>
                         <button x-show="selectedMatches.length > 0" @click="bulkDelete()" style="background-color: #c0392b; border: none; width: auto; padding: 8px 15px; margin: 0; border-radius: 5px;">
                             🗑 حذف انتخاب‌شده‌ها (<span x-text="selectedMatches.length"></span>)
                         </button>
@@ -112,6 +134,9 @@
                             </div>
                         </div>
                     </template>
+                    <template x-if="matches.length === 0">
+                        <p style="text-align: center; color: gray; padding: 20px;">هیچ مسابقه‌ای در سیستم وجود ندارد.</p>
+                    </template>
 
                     <div class="sticky-btn">
                         <button @click="bulkFinishMatches()" style="background-color: #1095c1; border: none; font-size: 1.1em; font-weight: bold; width: 100%; padding: 12px; border-radius: 8px;">
@@ -123,9 +148,34 @@
             </div>
         </div>
 
-        <div class="admin-card" style="margin-top: 10px;">
+        <!-- ====== ردیف فرم‌های ایجاد مسابقه که به پایین منتقل شدند ====== -->
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="admin-card" style="margin-bottom: 0;">
+                <h3 style="font-size: 1.2em;">➕ ایجاد مسابقه جدید (دستی)</h3>
+                <div class="grid">
+                    <input type="text" placeholder="میزبان" x-model="nHome">
+                    <input type="text" placeholder="میهمان" x-model="nAway">
+                    <input type="text" placeholder="تاریخ 1403/05/12" x-model="nDate">
+                    <input type="text" placeholder="ساعت 18:30" x-model="nTime">
+                    <input type="text" placeholder="ورزشگاه" x-model="nStadium">
+                    <button @click="createMatch()" style="background-color: #27ae60; border: none;">ثبت مسابقه</button>
+                </div>
+            </div>
+
+            <div class="admin-card" style="background-color: #f8f9fa; border: 2px dashed #ccc; margin-bottom: 0;">
+                <h3 style="font-size: 1.2em;">📂 بارگذاری گروهی بازی‌ها (Excel)</h3>
+                <p style="font-size: 0.85em; color: gray; margin-bottom: 10px;">ستون‌ها به ترتیب: میزبان | میهمان | تاریخ | ساعت | ورزشگاه | <strong>نام گروه (ستون ۶)</strong></p>
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+                    <input type="file" id="excelFile" accept=".xlsx, .xls">
+                    <button @click="uploadExcel()" style="background-color: #8e44ad; border: none;">بارگذاری و ثبت خودکار</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- باکس لاگ‌ها در انتهای صفحه -->
+        <div class="admin-card" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                <h3 style="margin: 0;">🔍 تاریخچه فعالیت‌های سیستم (Audit Logs)</h3>
+                <h3 style="margin: 0; font-size: 1.2em;">🔍 تاریخچه فعالیت‌های سیستم (Audit Logs)</h3>
                 <span style="font-size: 0.85em; color: gray;">نمایش ۳۰۰ عملیات اخیر</span>
             </div>
             
@@ -172,8 +222,9 @@
                 usersList: [],
                 logsList: [], 
                 selectedMatches: [],
+                userPredictions: {}, // دیکشنری جدید برای ذخیره پیش‌بینی‌های دسته‌بندی شده کاربران
                 nHome: "", nAway: "", nDate: "", nTime: "", nStadium: "",
-                totalPrize: 0, // متغیر جدید برای ذخیره مبلغ جایزه
+                totalPrize: 0,
                 
                 initData() {
                     const savedUser = localStorage.getItem('footballUser');
@@ -183,33 +234,50 @@
                     
                     this.isReady = true;
 
-                    fetch('/matches/list').then(r => r.json()).then(d => {
-                        this.matches = d.map(m => ({
+                    // دریافت همزمان اطلاعات برای پردازش یکپارچه
+                    Promise.all([
+                        fetch('/matches/list').then(r => r.json()),
+                        fetch('/users/list').then(r => r.json()),
+                        fetch('/predictions/all').then(r => r.json())
+                    ]).then(([matchesData, usersData, predsData]) => {
+                        
+                        // آماده‌سازی مسابقات
+                        this.matches = matchesData.map(m => ({
                             ...m,
                             actualHome: m.actual_home_goals !== null ? m.actual_home_goals : 0,
                             actualAway: m.actual_away_goals !== null ? m.actual_away_goals : 0,
                             markAsFinished: m.status === 'finished'
                         }));
                         this.selectedMatches = [];
+                        this.usersList = usersData;
+
+                        // پردازش و گروه‌بندی پیش‌بینی‌ها برای هر کاربر
+                        let uPreds = {};
+                        this.usersList.forEach(u => uPreds[u.name] = []); // ایجاد آرایه خالی برای همه
+                        
+                        for (const [matchId, matchPreds] of Object.entries(predsData)) {
+                            // پیدا کردن نام بازی
+                            const matchObj = this.matches.find(m => m.id === parseInt(matchId));
+                            const matchName = matchObj ? `${matchObj.home_team} - ${matchObj.away_team}` : `بازی ${matchId}`;
+                            
+                            // پخش کردن پیش‌بینی‌ها داخل پروفایل کاربران
+                            matchPreds.forEach(p => {
+                                if(!uPreds[p.user_name]) uPreds[p.user_name] = [];
+                                uPreds[p.user_name].push({ matchName: matchName, predHome: p.home, predAway: p.away });
+                            });
+                        }
+                        this.userPredictions = uPreds;
                     });
 
-                    fetch('/users/list').then(r => r.json()).then(d => this.usersList = d);
                     fetch('/admin/logs').then(r => r.json()).then(d => this.logsList = d);
-                    
-                    // دریافت مبلغ جایزه ذخیره شده در سیستم در هنگام لود شدن صفحه
-                    fetch('/admin/prize').then(r => r.json()).then(d => {
-                        this.totalPrize = d.total_prize;
-                    });
+                    fetch('/admin/prize').then(r => r.json()).then(d => this.totalPrize = d.total_prize);
                 },
                 
-                // تابع جدید برای ارسال مبلغ جایزه به سرور
                 updatePrize() {
                     if (this.totalPrize < 0) return alert("مبلغ جایزه نمی‌تواند عددی منفی باشد.");
                     fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") {
-                            alert("مبلغ جایزه با موفقیت در سیستم ثبت شد و در جدول کاربران اعمال خواهد شد.");
-                        }
+                        if(d.status === "success") alert("مبلغ جایزه با موفقیت در سیستم ثبت شد.");
                     });
                 },
 

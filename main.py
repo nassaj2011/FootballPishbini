@@ -511,7 +511,7 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
 
             # ---- محدودیت دسترسی به دستورات مدیریتی ----
             if chat_id != ADMIN_BALE_ID:
-                send_bale_notification("⛔️ شما مجوز استفاده از لایه‌های مدیریتی ربات را ندارید.", target_chat_id=chat_id)
+                send_bale_notification(f"⛔️ دسترسی غیرمجاز!\nآیدی‌ای که سرور از شما دریافت کرد: {chat_id}\nآیدی‌ای که در کد تنظیم شده است: {ADMIN_BALE_ID}", target_chat_id=chat_id)
                 return {"status": "unauth"}
 
             # دستورات ادمین

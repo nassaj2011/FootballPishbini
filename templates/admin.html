@@ -117,7 +117,20 @@
                             <div style="display: flex; align-items: center; gap: 15px;">
                                 <input type="checkbox" x-model="selectedMatches" :value="match.id" title="انتخاب برای حذف">
                                 <div>
+                                    <!-- نمایش عادی -->
+                                    <div x-show="!match.isEditing" style="display: inline-block;">
                                     <strong style="font-size: 1.1em;" x-text="match.home_team"></strong> ⚡ <strong style="font-size: 1.1em;" x-text="match.away_team"></strong>
+                                    <a href="#" @click.prevent="match.isEditing = true" style="font-size: 0.75em; margin-right: 10px; color: #1095c1; text-decoration: none;">✏️ ویرایش نام</a>
+                                </div>
+                                    <!-- حالت ویرایش -->
+                                    <div x-show="match.isEditing" style="display: inline-flex; gap: 5px; align-items: center; margin-bottom: 5px;">
+                                    <input type="text" x-model="match.home_team" style="width: 90px !important; padding: 2px; margin: 0; font-size: 0.9em; text-align: center;">
+                                    <span>⚡</span>
+                                    <input type="text" x-model="match.away_team" style="width: 90px !important; padding: 2px; margin: 0; font-size: 0.9em; text-align: center;">
+                                 <button @click="saveMatchEdit(match)" style="padding: 2px 10px; width: auto; margin: 0; font-size: 0.8em; background-color: #27ae60; border: none;">ذخیره</button>
+                                </div>
+
+
                                     <div style="font-size: 0.8em; color: gray; margin-top: 5px;">
                                         📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏆 <span x-text="match.group_name"></span>
                                     </div>
@@ -295,6 +308,13 @@
                     if(!this.nHome || !this.nAway) return alert("نام میزبان و میهمان الزامی است");
                     fetch(`/matches/?home_team=${this.nHome}&away_team=${this.nAway}&match_date=${this.nDate}&match_time=${this.nTime}&stadium=${this.nStadium}`, { method: 'POST' })
                     .then(() => { alert("مسابقه جدید با موفقیت ثبت شد."); this.initData(); });
+                    saveMatchEdit(m) {
+                    fetch(`/matches/edit/${m.id}?home=${m.home_team}&away=${m.away_team}`, { method: 'POST' })
+                    .then(r => r.json()).then(d => {
+                    if(d.status === "success") m.isEditing = false;
+                    else alert("خطا در ذخیره نام");
+                    });
+
                 },
                 
                 uploadExcel() {

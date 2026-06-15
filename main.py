@@ -263,6 +263,16 @@ def upload_matches(file: UploadFile = File(...), db_session: Session = Depends(g
         return {"status": "success", "message": f"{added} مسابقه اضافه شد"}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/matches/edit/{match_id}")
+def edit_match_names(match_id: int, home: str, away: str, db_session: Session = Depends(get_db)):
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if match:
+        match.home_team = home
+        match.away_team = away
+        db_session.commit()
+        return {"status": "success"}
+    return {"status": "error"}
+
 @app.delete("/matches/{match_id}")
 def delete_match(match_id: int, db_session: Session = Depends(get_db)):
     match = db_session.query(db.Match).filter(db.Match.id == match_id).first()

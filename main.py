@@ -542,11 +542,18 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
 
             elif text == "/matches":
                 matches = db_session.query(db.Match).all()
-                msg = "📋 **لیست کل مسابقات:**\n\n"
-                for m in matches:
-                    status_text = "🏁 تمام‌شده" if m.status == "finished" else "⏳ آینده"
-                    msg += f"⚔️ **{m.home_team} - {m.away_team}** (ID: {m.id} | {status_text})\n📊 پیش‌بینی‌ها: /mp_{m.id} | ⚠️ غایبین: /absent_{m.id}\n-------------------\n"
-                send_bale_notification(msg, target_chat_id=chat_id)
+                if not matches:
+                    send_bale_notification("❌ هیچ مسابقه‌ای ثبت نشده است.", target_chat_id=chat_id)
+                else:
+                    # تقسیم لیست بازی‌ها به دسته‌های ۵ تایی برای جلوگیری از خطای طولانی بودن پیام
+                    chunk_size = 5
+                    for i in range(0, len(matches), chunk_size):
+                        chunk = matches[i:i+chunk_size]
+                        msg = f"📋 **لیست مسابقات (بخش {i//chunk_size + 1}):**\n\n"
+                        for m in chunk:
+                            status_text = "🏁 تمام‌شده" if m.status == "finished" else "⏳ آینده"
+                            msg += f"⚔️ **{m.home_team} - {m.away_team}**\n🆔 ID: {m.id} | {status_text}\n📊 /mp_{m.id} | ⚠️ /absent_{m.id}\n-------------------\n"
+                        send_bale_notification(msg, target_chat_id=chat_id)
 
             elif text.startswith("/mp_"):
                 try:

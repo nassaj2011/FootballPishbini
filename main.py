@@ -20,7 +20,7 @@ import requests
 # --- تنظیمات اتصال به بله ---
 BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
-ADMIN_BALE_ID = "123456789" # آیدی عددی شخصی شما در بله برای ارسال دستورات از PV (حتما تغییر دهید)
+ADMIN_BALE_ID = "189389617"
 
 def send_bale_notification(message_text: str, target_chat_id=None):
     chat = target_chat_id if target_chat_id else BALE_CHAT_ID

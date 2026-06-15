@@ -16,23 +16,32 @@ import pytz
 from datetime import datetime
 import uvicorn
 import requests
+import json  # <--- ماژول اضافه شده برای پردازش استاندارد دکمه‌های شیشه‌ای
 
 # --- تنظیمات اتصال به بله ---
 BALE_TOKEN = "928514616:MBid8RZQQ3J5g5zWWuYh0ChrjvlRTCVzLws"
 BALE_CHAT_ID = "@Golchine_Akhbar"
 ADMIN_BALE_ID = "123456789"  # حتماً آیدی عددی شخصی خودتان در بله را اینجا قرار دهید
 
-# 🌟 ارتقای تابع ارسال پیام برای پشتیبانی از دکمه‌های شیشه‌ای (reply_markup)
+# 🌟 تابع ارسال پیام (همراه با سیستم دیباگ و پردازش دکمه‌ها)
 def send_bale_notification(message_text: str, target_chat_id=None, reply_markup=None):
     chat = target_chat_id if target_chat_id else BALE_CHAT_ID
     url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"
     payload = {"chat_id": chat, "text": message_text}
+    
+    # تبدیل دکمه‌های شیشه‌ای به استرینگ استاندارد برای جلوگیری از خطای API بله
     if reply_markup:
-        payload["reply_markup"] = reply_markup
-    try: requests.post(url, json=payload, timeout=10)
-    except Exception: pass
+        payload["reply_markup"] = json.dumps(reply_markup)
+        
+    try: 
+        response = requests.post(url, json=payload, timeout=10)
+        # سیستم دیباگ: اگر بله پیام را رد کند، دلیل آن در لاگ VS Code چاپ می‌شود
+        if response.status_code != 200:
+            print(f"❌ Bale API Error: {response.text}")
+    except Exception as e: 
+        print(f"❌ Connection Error: {e}")
 
-# 🌟 تابع جدید برای ساخت و ارسال منوی اصلی کاربری با دکمه‌های شیشه‌ای
+# 🌟 تابع ساخت و ارسال منوی اصلی کاربری با دکمه‌های شیشه‌ای
 def send_user_main_menu(chat_id: str):
     menu_buttons = {
         "inline_keyboard": [
@@ -495,16 +504,17 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
             chat_id = str(data["message"]["chat"]["id"])
             text = data["message"].get("text", "").strip()
 
-            # نمایش منوی اصلی به هر کاربری که وارد ربات می‌شود
+            # نمایش منوی اصلی به هر کاربری که وارد ربات می‌شود (بدون نیاز به دسترسی ادمین)
             if text in ["/start", "شروع", "منو", "/menu"]:
                 send_user_main_menu(chat_id)
                 return {"status": "ok"}
 
             # ---- محدودیت دسترسی به دستورات مدیریتی ----
             if chat_id != ADMIN_BALE_ID:
+                send_bale_notification("⛔️ شما مجوز استفاده از لایه‌های مدیریتی ربات را ندارید.", target_chat_id=chat_id)
                 return {"status": "unauth"}
 
-            # دستورات ادمین (لیست کاربران، ثبت نتایج و...) که قبلاً نوشتیم
+            # دستورات ادمین
             if text == "/users":
                 users = db_session.query(db.User).all()
                 msg = "👥 **لیست تمام کاربران سیستم:**\n\n"

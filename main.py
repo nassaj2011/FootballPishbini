@@ -21,7 +21,7 @@ import json  # <--- ماژول اضافه شده برای پردازش استا�
 # --- تنظیمات اتصال به بله ---
 BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
-ADMIN_BALE_ID = "189389618"
+ADMIN_BALE_ID = "189389617"
 
 # 🌟 تابع ارسال پیام (همراه با سیستم دیباگ و پردازش دکمه‌ها)
 def send_bale_notification(message_text: str, target_chat_id=None, reply_markup=None):

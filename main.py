@@ -15,8 +15,20 @@ import jdatetime
 import pytz
 from datetime import datetime
 import uvicorn
+import requests
 
-# --- سیستم بک‌آپ‌گیری خودکار سازگار با فضای ابری لیارا ---
+# --- تنظیمات اتصال به پیام‌رسان بله ---
+BALE_TOKEN = "توکن_ربات_شما_که_از_بات‌فادر_گرفتید"
+BALE_CHAT_ID = "آیدی_کانال_شما"
+
+def send_bale_notification(message_text: str):
+    url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"
+    try:
+        requests.post(url, json={"chat_id": BALE_CHAT_ID, "text": message_text}, timeout=10)
+    except Exception:
+        pass
+
+# --- سیستم بک‌آپ‌گیری ---
 BACKUP_DIR = "data/backups"
 if not os.path.exists(BACKUP_DIR):
     os.makedirs(BACKUP_DIR)
@@ -25,26 +37,20 @@ def backup_database():
     try:
         now_str = jdatetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
         shutil.copy2("data/football.db", f"{BACKUP_DIR}/football_backup_{now_str}.db")
-        print(f"Backup created: {BACKUP_DIR}/football_backup_{now_str}.db")
-    except Exception as e:
-        print(f"Backup failed: {e}")
+    except Exception:
+        pass
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
 scheduler.start()
 
-# --- ساخت خودکار جداول و اصلاح دیتابیس بدون از دست رفتن داده‌ها ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.Base.metadata.create_all(bind=db.engine)
-    # تزریق امن ستون جدید به دیتابیس موجود روی سرور
     with db.engine.begin() as conn:
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN previous_rank INTEGER DEFAULT 1;"))
-        except Exception:
-            pass # اگر ستون از قبل وجود داشته باشد خطایی نمی‌دهد
+        try: conn.execute(text("ALTER TABLE users ADD COLUMN previous_rank INTEGER DEFAULT 1;"))
+        except Exception: pass
     yield
-# -----------------------------------------------
 
 app = FastAPI(title="سیستم پیش‌بینی فوتبال", lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
@@ -76,53 +82,27 @@ class BulkDeleteRequest(BaseModel): match_ids: List[int]
 class MatchResultItem(BaseModel): match_id: int; actual_home: int; actual_away: int
 class BulkFinishRequest(BaseModel): results: List[MatchResultItem]
 
-@app.get("/")
-def home(request: Request): return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
-
-@app.get("/admin")
-def admin_page(request: Request): return templates.TemplateResponse(request=request, name="admin.html", context={"request": request})
-
-@app.get("/matches/list")
-def get_matches(db_session: Session = Depends(get_db)):
-    return db_session.query(db.Match).order_by(db.Match.timestamp).all()
-
-@app.get("/users/list")
-def get_users(db_session: Session = Depends(get_db)):
-    return db_session.query(db.User).order_by(db.User.id.desc()).all()
-
-@app.get("/admin/logs")
-def get_audit_logs(db_session: Session = Depends(get_db)):
-    return db_session.query(db.AuditLog).order_by(db.AuditLog.id.desc()).limit(300).all()
-
-# دریافت میزان جایزه کل تنظیم شده
-@app.get("/admin/prize")
-def get_prize(db_session: Session = Depends(get_db)):
-    setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
-    return {"total_prize": float(setting.value) if setting else 0.0}
-
-# ثبت میزان جایزه جدید توسط ادمین
-@app.post("/admin/prize")
-def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
-    setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
-    if setting:
-        setting.value = str(total_prize)
-    else:
-        db_session.add(db.SystemSetting(key="total_prize", value=str(total_prize)))
-    db_session.commit()
-    return {"status": "success"}
-
-@app.get("/leaderboard/")
-def get_leaderboard(db_session: Session = Depends(get_db)):
+def calculate_leaderboard_data(db_session):
     users = db_session.query(db.User).all()
-    finished_matches = db_session.query(db.Match).filter(db.Match.status == "finished").all()
+    
+    # فیلتر هوشمندانه فاز اول و دوم
+    arabia_match = db_session.query(db.Match).filter(db.Match.home_team.contains('عربستان'), db.Match.away_team.contains('اروگوئه')).first()
+    is_phase_1_finished = arabia_match and arabia_match.status == "finished"
+    
+    threshold_ts = 0
+    if is_phase_1_finished:
+        iran_nz = db_session.query(db.Match).filter(db.Match.home_team.contains('ایران'), db.Match.away_team.contains('نیوزلند')).first()
+        if iran_nz and iran_nz.timestamp:
+            threshold_ts = iran_nz.timestamp
+
+    finished_matches = db_session.query(db.Match).filter(db.Match.status == "finished", db.Match.timestamp >= threshold_ts).all()
     
     prize_setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
     total_prize = float(prize_setting.value) if prize_setting else 0.0
 
     leaderboard_data = []
-   
     for u in users:
-        stats = {"exact": 0, "diff": 0, "winner": 0, "wrong": 0, "missed": 0}
+        stats = {"exact": 0, "diff": 0, "winner": 0, "wrong": 0, "missed": 0, "score": 0}
         preds = {p.match_id: p for p in db_session.query(db.Prediction).filter(db.Prediction.user_id == u.id).all()}
         for fm in finished_matches:
             if fm.id not in preds: stats["missed"] += 1
@@ -130,72 +110,91 @@ def get_leaderboard(db_session: Session = Depends(get_db)):
                 p = preds[fm.id]
                 a_diff = fm.actual_home_goals - fm.actual_away_goals
                 p_diff = p.predicted_home_goals - p.predicted_away_goals
-                if p.predicted_home_goals == fm.actual_home_goals and p.predicted_away_goals == fm.actual_away_goals: stats["exact"] += 1
-                elif p_diff == a_diff: stats["diff"] += 1
-                elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0): stats["winner"] += 1
-                else: stats["wrong"] += 1
+                if p.predicted_home_goals == fm.actual_home_goals and p.predicted_away_goals == fm.actual_away_goals: 
+                    stats["exact"] += 1; stats["score"] += 3
+                elif p_diff == a_diff: 
+                    stats["diff"] += 1; stats["score"] += 2
+                elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0): 
+                    stats["winner"] += 1; stats["score"] += 1
+                else: 
+                    stats["wrong"] += 1
         
-        prev_rank = getattr(u, 'previous_rank', 1)
-        if prev_rank is None: prev_rank = 1
-
-        leaderboard_data.append({
-            "id": u.id, "name": u.name, "score": u.score, 
-            "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats
-        })
+        # بروزرسانی امتیاز نهایی در پایگاه داده کاربر
+        u.score = stats["score"]
+        prev_rank = getattr(u, 'previous_rank', 1) or 1
+        leaderboard_data.append({"id": u.id, "name": u.name, "score": stats["score"], "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats})
        
+    db_session.commit()
     leaderboard_data.sort(key=lambda x: x["score"], reverse=True)
     
-    # تعیین رتبه جدید و مشخص کردن نوع تغییر رتبه (فلش گرافیکی)
     current_rank = 1
     for i, row in enumerate(leaderboard_data):
-        if i > 0 and leaderboard_data[i]["score"] < leaderboard_data[i-1]["score"]:
-            current_rank = i + 1
+        if i > 0 and leaderboard_data[i]["score"] < leaderboard_data[i-1]["score"]: current_rank = i + 1
         row["rank"] = current_rank
-        
         if row["rank"] < row["previous_rank"]: row["trend"] = "up"
         elif row["rank"] > row["previous_rank"]: row["trend"] = "down"
         else: row["trend"] = "stable"
 
-    # پیاده‌سازی منطق و فرمول‌های دقیق تقسیم جوایز کاربران
     if total_prize > 0 and leaderboard_data:
         from collections import defaultdict
         rank_groups = defaultdict(list)
-        for row in leaderboard_data:
-            rank_groups[row["rank"]].append(row)
+        for row in leaderboard_data: rank_groups[row["rank"]].append(row)
         
         first_place_users = rank_groups[1]
         distinct_ranks = sorted(rank_groups.keys())
         second_place_users = rank_groups[distinct_ranks[1]] if len(distinct_ranks) > 1 else []
 
-        # قانون ۲: بیش از یک نفر اول داریم -> تقسیم مساوی بین تمام نفرات اول
         if len(first_place_users) >= 2:
             share = total_prize / len(first_place_users)
-            for u in first_place_users:
-                u["prize"] = round(share, 2)
-        
+            for u in first_place_users: u["prize"] = round(share, 2)
         elif len(first_place_users) == 1:
             u1 = first_place_users[0]
-            
-            # قانون ۱: دقیقاً یک نفر اول و یک نفر دوم داریم -> تقسیم به نسبت امتیازات کل آن‌ها
             if len(second_place_users) == 1:
                 u2 = second_place_users[0]
                 total_pts = u1["score"] + u2["score"]
                 if total_pts > 0:
                     u1["prize"] = round((u1["score"] / total_pts) * total_prize, 2)
                     u2["prize"] = round((u2["score"] / total_pts) * total_prize, 2)
-                else:
-                    u1["prize"] = u2["prize"] = round(total_prize / 2, 2)
-            
-            # قانون ۳: یک نفر اول و چند نفر دوم هم‌امتیاز داریم -> ۵۵٪ نفر اول و ۴۵٪ تقسیم مساوی بین نفرات دوم
+                else: u1["prize"] = u2["prize"] = round(total_prize / 2, 2)
             elif len(second_place_users) >= 2:
                 u1["prize"] = round(0.55 * total_prize, 2)
                 share_45 = (0.45 * total_prize) / len(second_place_users)
-                for u in second_place_users:
-                    u["prize"] = round(share_45, 2)
-            else:
-                u1["prize"] = total_prize
+                for u in second_place_users: u["prize"] = round(share_45, 2)
+            else: u1["prize"] = total_prize
 
     return leaderboard_data
+
+@app.get("/")
+def home(request: Request): return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
+
+@app.get("/admin")
+def admin_page(request: Request): return templates.TemplateResponse(request=request, name="admin.html", context={"request": request})
+
+@app.get("/matches/list")
+def get_matches(db_session: Session = Depends(get_db)): return db_session.query(db.Match).order_by(db.Match.timestamp).all()
+
+@app.get("/users/list")
+def get_users(db_session: Session = Depends(get_db)): return db_session.query(db.User).order_by(db.User.id.desc()).all()
+
+@app.get("/admin/logs")
+def get_audit_logs(db_session: Session = Depends(get_db)): return db_session.query(db.AuditLog).order_by(db.AuditLog.id.desc()).limit(300).all()
+
+@app.get("/admin/prize")
+def get_prize(db_session: Session = Depends(get_db)):
+    setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
+    return {"total_prize": float(setting.value) if setting else 0.0}
+
+@app.post("/admin/prize")
+def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
+    setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
+    if setting: setting.value = str(total_prize)
+    else: db_session.add(db.SystemSetting(key="total_prize", value=str(total_prize)))
+    db_session.commit()
+    return {"status": "success"}
+
+@app.get("/leaderboard/")
+def get_leaderboard(db_session: Session = Depends(get_db)):
+    return calculate_leaderboard_data(db_session)
 
 @app.get("/predictions/all")
 def get_all_predictions(db_session: Session = Depends(get_db)):
@@ -285,63 +284,69 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
     match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
     if not match or match.status != "upcoming": raise HTTPException(status_code=400, detail="مسابقه یافت نشد")
     if not match.timestamp: raise HTTPException(status_code=400, detail="تاریخ نامعتبر است.")
-    if datetime.now(pytz.timezone("Asia/Tehran")).timestamp() >= (match.timestamp - 900): raise HTTPException(status_code=400, detail="مهلت ثبت پیش‌بینی برای این مسابقه تمام شده است")
+    if datetime.now(pytz.timezone("Asia/Tehran")).timestamp() >= (match.timestamp - 900): raise HTTPException(status_code=400, detail="مهلت ثبت پیش‌بینی تمام شده است")
 
     user = db_session.query(db.User).filter(db.User.id == user_id).first()
-    user_name = user.name if user else "Unknown"
-
     pred = db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id, db.Prediction.match_id == match_id).first()
+    
     if pred:
-        pred.predicted_home_goals = home_goals
-        pred.predicted_away_goals = away_goals
+        pred.predicted_home_goals = home_goals; pred.predicted_away_goals = away_goals
         action = "ویرایش پیش‌بینی"
     else:
         db_session.add(db.Prediction(user_id=user_id, match_id=match_id, predicted_home_goals=home_goals, predicted_away_goals=away_goals))
         action = "ثبت پیش‌بینی جدید"
         
     db_session.commit()
-    
-    details = f"بازی: {match.home_team} و {match.away_team} | نتیجه ثبت شده: {home_goals} - {away_goals}"
-    log_action(db_session, request, user_name, action, details)
-    
+    log_action(db_session, request, user.name if user else "Unknown", action, f"بازی: {match.home_team} و {match.away_team} | {home_goals} - {away_goals}")
     return {"status": "success"}
 
 @app.post("/matches/bulk-finish")
 def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(get_db)):
-    # ثبت رتبه‌های فعلی کاربران به عنوان رتبه قبلی قبل از بروزرسانی نهایی نتایج بازی جدید
     all_users = db_session.query(db.User).all()
     sorted_by_current = sorted(all_users, key=lambda x: x.score, reverse=True)
-    
     current_rank = 1
     for i, u in enumerate(sorted_by_current):
-        if i > 0 and sorted_by_current[i].score < sorted_by_current[i-1].score:
-            current_rank = i + 1
+        if i > 0 and sorted_by_current[i].score < sorted_by_current[i-1].score: current_rank = i + 1
         u.previous_rank = current_rank
     db_session.commit()
 
+    trigger_excel_backup = False
+    bale_report = "🏁 **نتایج جدید مسابقات ثبت شد!**\n\n"
+    
     for item in req.results:
         match = db_session.query(db.Match).filter(db.Match.id == item.match_id).first()
         if match:
-            match.actual_home_goals = item.actual_home; match.actual_away_goals = item.actual_away; match.status = "finished"
-    db_session.commit()
-    
-    users = db_session.query(db.User).all()
-    for u in users: u.score = 0
-    db_session.commit()
+            match.actual_home_goals = item.actual_home
+            match.actual_away_goals = item.actual_away
+            match.status = "finished"
+            bale_report += f"⚽ {match.home_team} {item.actual_home} - {item.actual_away} {match.away_team}\n"
+            if "عربستان" in match.home_team and "اروگوئه" in match.away_team:
+                trigger_excel_backup = True
 
-    finished_matches = db_session.query(db.Match).filter(db.Match.status == "finished").all()
-    for fm in finished_matches:
-        actual_diff = fm.actual_home_goals - fm.actual_away_goals
-        predictions = db_session.query(db.Prediction).filter(db.Prediction.match_id == fm.id).all()
-        for pred in predictions:
-            user = db_session.query(db.User).filter(db.User.id == pred.user_id).first()
-            if not user: continue
-            pred_diff = pred.predicted_home_goals - pred.predicted_away_goals
-            if pred.predicted_home_goals == fm.actual_home_goals and pred.predicted_away_goals == fm.actual_away_goals: user.score += 3
-            elif pred_diff == actual_diff: user.score += 2
-            elif (actual_diff > 0 and pred_diff > 0) or (actual_diff < 0 and pred_diff < 0): user.score += 1
+    # خروجی گرفتن از فاز اول به اکسل پیش از ریست
+    if trigger_excel_backup:
+        try:
+            lb_data = calculate_leaderboard_data(db_session)
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Phase 1 Final"
+            ws.append(["رتبه", "نام", "امتیاز", "دقیق", "تفاضل", "برنده", "غلط"])
+            for r in lb_data:
+                ws.append([r['rank'], r['name'], r['score'], r['exact'], r['diff'], r['winner'], r['wrong']])
+            wb.save("data/backups/leaderboard_phase1_final.xlsx")
+        except Exception:
+            pass
+            
     db_session.commit()
+    calculate_leaderboard_data(db_session)
+
+    updated_users = db_session.query(db.User).order_by(db.User.score.desc()).all()
+    if updated_users:
+        bale_report += f"\n🏆 صدرنشین فعلی جدول: {updated_users[0].name} ({updated_users[0].score} امتیاز)\n"
+    
+    send_bale_notification(bale_report)
     return {"status": "success"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
+

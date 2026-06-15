@@ -19,7 +19,7 @@ import requests
 import json  # <--- ماژول اضافه شده برای پردازش استاندارد دکمه‌های شیشه‌ای
 
 # --- تنظیمات اتصال به بله ---
-BALE_TOKEN = "928514616:MBid8RZQQ3J5g5zWWuYh0ChrjvlRTCVzLws"
+BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
 ADMIN_BALE_ID = "123456789"  # حتماً آیدی عددی شخصی خودتان در بله را اینجا قرار دهید
 

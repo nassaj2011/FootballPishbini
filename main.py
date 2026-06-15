@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     with db.engine.begin() as conn:
         try: conn.execute(text("ALTER TABLE users ADD COLUMN previous_rank INTEGER DEFAULT 1;"))
         except Exception: pass
-        try: 
+        try:
             conn.execute(text("ALTER TABLE users ADD COLUMN username TEXT;"))
             conn.execute(text("UPDATE users SET username = name WHERE username IS NULL;"))
         except Exception: pass
@@ -84,7 +84,7 @@ def calculate_leaderboard_data(db_session):
     users = db_session.query(db.User).all()
     arabia_match = db_session.query(db.Match).filter(db.Match.home_team.contains('عربستان'), db.Match.away_team.contains('اروگوئه')).first()
     is_phase_1_finished = arabia_match and arabia_match.status == "finished"
-    
+   
     threshold_ts = 0
     if is_phase_1_finished:
         iran_nz = db_session.query(db.Match).filter(db.Match.home_team.contains('ایران'), db.Match.away_team.contains('نیوزلند')).first()
@@ -104,24 +104,24 @@ def calculate_leaderboard_data(db_session):
                 p = preds[fm.id]
                 a_diff = fm.actual_home_goals - fm.actual_away_goals
                 p_diff = p.predicted_home_goals - p.predicted_away_goals
-                if p.predicted_home_goals == fm.actual_home_goals and p.predicted_away_goals == fm.actual_away_goals: 
+                if p.predicted_home_goals == fm.actual_home_goals and p.predicted_away_goals == fm.actual_away_goals:
                     stats["exact"] += 1; stats["score"] += 3
-                elif p_diff == a_diff: 
+                elif p_diff == a_diff:
                     stats["diff"] += 1; stats["score"] += 2
-                elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0): 
+                elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0):
                     stats["winner"] += 1; stats["score"] += 1
                 else: stats["wrong"] += 1
-        
+       
         u.score = stats["score"]
         prev_rank = getattr(u, 'previous_rank', 1) or 1
         leaderboard_data.append({
-            "id": u.id, "name": u.name, "username": u.username, "score": stats["score"], 
+            "id": u.id, "name": u.name, "username": u.username, "score": stats["score"],
             "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats
         })
        
     db_session.commit()
     leaderboard_data.sort(key=lambda x: x["score"], reverse=True)
-    
+   
     current_rank = 1
     for i, row in enumerate(leaderboard_data):
         if i > 0 and leaderboard_data[i]["score"] < leaderboard_data[i-1]["score"]: current_rank = i + 1
@@ -134,7 +134,7 @@ def calculate_leaderboard_data(db_session):
         from collections import defaultdict
         rank_groups = defaultdict(list)
         for row in leaderboard_data: rank_groups[row["rank"]].append(row)
-        
+       
         first_place_users = rank_groups[1]
         distinct_ranks = sorted(rank_groups.keys())
         second_place_users = rank_groups[distinct_ranks[1]] if len(distinct_ranks) > 1 else []
@@ -158,6 +158,90 @@ def calculate_leaderboard_data(db_session):
             else: u1["prize"] = total_prize
 
     return leaderboard_data
+
+# ==========================================
+# تابع تولید پیام جذاب بله (اضافه شده جدید)
+# ==========================================
+def generate_bale_summary_message(db_session: Session, finished_match_id: int) -> str:
+    match = db_session.query(db.Match).filter(db.Match.id == finished_match_id).first()
+    if not match:
+        return ""
+
+    msg_parts = [
+        "🏁 **سوت پایان! نتیجه نهایی در سیستم ثبت شد** 🏁\n",
+        f"⚽️ **{match.home_team} {match.actual_home_goals} - {match.actual_away_goals} {match.away_team}**",
+        "*(پایان بازی)*\n",
+        "🏆 **وضعیت جدول و عملکرد کاربران در این بازی:**\n"
+    ]
+
+    predictions = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id)\
+        .filter(db.Prediction.match_id == finished_match_id)\
+        .order_by(db.User.score.desc()).all()
+
+    medals = ["🥇", "🥈", "🥉"]
+    for idx, (pred, user) in enumerate(predictions):
+        medal = medals[idx] if idx < 3 else "👤"
+        
+        if pred.predicted_home_goals == match.actual_home_goals and pred.predicted_away_goals == match.actual_away_goals:
+            point_text = "👈 *کسب 3 امتیاز کامل (پیش‌بینی دقیق!)*"
+        elif (pred.predicted_home_goals > pred.predicted_away_goals and match.actual_home_goals > match.actual_away_goals) or \
+             (pred.predicted_home_goals < pred.predicted_away_goals and match.actual_home_goals < match.actual_away_goals) or \
+             (pred.predicted_home_goals == pred.predicted_away_goals and match.actual_home_goals == match.actual_away_goals):
+            point_text = "👈 *کسب 1 امتیاز (تشخیص درست برنده یا مساوی)*"
+        else:
+            point_text = "👈 *بدون امتیاز*"
+
+        display_name = user.username if user.username else user.name
+        
+        msg_parts.append(
+            f"{medal} **{display_name}** | ⭐️ مجموع امتیاز: {user.score}\n"
+            f"🎯 پیش‌بینی: ({pred.predicted_home_goals} - {pred.predicted_away_goals}) {point_text}\n"
+        )
+
+    msg_parts.append("➖➖➖➖➖➖➖➖➖➖\n")
+
+    next_match = db_session.query(db.Match).filter(db.Match.status == "upcoming").order_by(db.Match.timestamp.asc()).first()
+
+    if next_match:
+        time_left_str = "نامشخص"
+        if next_match.timestamp:
+            time_diff = datetime.fromtimestamp(next_match.timestamp) - datetime.now()
+            total_seconds = int(time_diff.total_seconds())
+            if total_seconds > 0:
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes = remainder // 60
+                time_left_str = f"{hours} ساعت و {minutes} دقیقه"
+            else:
+                time_left_str = "زمان ثبت پیش‌بینی تمام شده است!"
+
+        msg_parts.append(
+            f"🔜 **نبرد بعدی فرا رسید!**\n"
+            f"⚔️ **{next_match.home_team} 🆚 {next_match.away_team}**\n\n"
+            f"⏳ **زمان باقی‌مانده تا بسته شدن فرم:** {time_left_str}\n\n"
+            "👀 **پیش‌بینی‌های ثبت‌شده تا این لحظه:**"
+        )
+
+        next_preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id)\
+            .filter(db.Prediction.match_id == next_match.id).all()
+        
+        predicted_user_ids = []
+        for pred, user in next_preds:
+            display_name = user.username if user.username else user.name
+            msg_parts.append(f"👤 {display_name}: {next_match.home_team} {pred.predicted_home_goals} - {pred.predicted_away_goals} {next_match.away_team}")
+            predicted_user_ids.append(user.id)
+
+        all_users = db_session.query(db.User).all()
+        missing_users = [u for u in all_users if u.id not in predicted_user_ids]
+        
+        if missing_users:
+            msg_parts.append("\n⚠️ **هشدار به غایبین!**")
+            msg_parts.append("تا دیر نشده امتیاز این بازی حساس رو از دست ندید:")
+            mentions = ", ".join([f"@{u.username if u.username else u.name}" for u in missing_users])
+            msg_parts.append(mentions)
+
+    msg_parts.append("\n👇 **همین الان پیش‌بینی‌ات رو ثبت یا ویرایش کن!**")
+    return "\n".join(msg_parts)
+
 
 @app.get("/")
 def home(request: Request): return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
@@ -206,7 +290,7 @@ def get_user_predictions(user_id: int, db_session: Session = Depends(get_db)):
 
 @app.post("/users/")
 def create_user(request: Request, name: str, username: str, password: str, db_session: Session = Depends(get_db)):
-    if db_session.query(db.User).filter(db.User.username == username).first(): 
+    if db_session.query(db.User).filter(db.User.username == username).first():
         raise HTTPException(status_code=400, detail="این یوزرنیم قبلاً ثبت شده است")
     now_str = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M")
     new_user = db.User(name=name, username=username, password=password, last_login=now_str)
@@ -229,7 +313,6 @@ def login_user(request: Request, username: str, password: str, db_session: Sessi
     log_action(db_session, request, user.username, "ورود کاربر", "ورود موفق به سیستم")
     return {"status": "success", "user_id": user.id, "name": user.name, "username": user.username, "is_admin": False}
 
-# ---- API جدید برای ویرایش یوزرنیم توسط ادمین ----
 @app.post("/users/edit/{target_user_id}")
 def edit_user_username(target_user_id: int, new_username: str, db_session: Session = Depends(get_db)):
     existing = db_session.query(db.User).filter(db.User.username == new_username).first()
@@ -304,20 +387,24 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
 
     user = db_session.query(db.User).filter(db.User.id == user_id).first()
     pred = db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id, db.Prediction.match_id == match_id).first()
-    
+   
     if pred:
         pred.predicted_home_goals = home_goals; pred.predicted_away_goals = away_goals
         action = "ویرایش پیش‌بینی"
     else:
         db_session.add(db.Prediction(user_id=user_id, match_id=match_id, predicted_home_goals=home_goals, predicted_away_goals=away_goals))
         action = "ثبت پیش‌بینی جدید"
-        
+       
     db_session.commit()
     log_action(db_session, request, user.username if user else "Unknown", action, f"بازی: {match.home_team} و {match.away_team} | {home_goals} - {away_goals}")
     return {"status": "success"}
 
+# ==========================================
+# ویرایش مسیر پایان بازی برای سیستم پیام‌دهی جدید
+# ==========================================
 @app.post("/matches/bulk-finish")
 def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(get_db)):
+    # ذخیره رتبه‌های قبلی برای فلش‌های صعود و سقوط در جدول
     all_users = db_session.query(db.User).all()
     sorted_by_current = sorted(all_users, key=lambda x: x.score, reverse=True)
     current_rank = 1
@@ -327,14 +414,25 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
     db_session.commit()
 
     trigger_excel_backup = False
-    bale_report = "🏁 **نتایج جدید مسابقات ثبت شد!**\n\n"
+    finished_match_ids = []
+
+    # ذخیره تمام نتایجی که از پنل ادمین ارسال شده است
     for item in req.results:
         match = db_session.query(db.Match).filter(db.Match.id == item.match_id).first()
         if match:
-            match.actual_home_goals = item.actual_home; match.actual_away_goals = item.actual_away; match.status = "finished"
-            bale_report += f"⚽ {match.home_team} {item.actual_home} - {item.actual_away} {match.away_team}\n"
-            if "عربستان" in match.home_team and "اروگوئه" in match.away_team: trigger_excel_backup = True
+            match.actual_home_goals = item.actual_home
+            match.actual_away_goals = item.actual_away
+            match.status = "finished"
+            finished_match_ids.append(match.id)
+            if "عربستان" in match.home_team and "اروگوئه" in match.away_team: 
+                trigger_excel_backup = True
 
+    db_session.commit()
+    
+    # بسیار مهم: محاسبه مجدد امتیازات و آپدیت یوزرها قبل از فرستادن پیام
+    calculate_leaderboard_data(db_session)
+
+    # گرفتن بکاپ اکسل در صورت پایان مرحله اول
     if trigger_excel_backup:
         try:
             lb_data = calculate_leaderboard_data(db_session)
@@ -344,12 +442,16 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
             for r in lb_data: ws.append([r['rank'], r['username'], r['name'], r['score'], r['exact'], r['diff'], r['winner'], r['wrong']])
             wb.save("data/backups/leaderboard_phase1_final.xlsx")
         except Exception: pass
-            
-    db_session.commit()
-    calculate_leaderboard_data(db_session)
-    updated_users = db_session.query(db.User).order_by(db.User.score.desc()).all()
-    if updated_users: bale_report += f"\n🏆 صدرنشین فعلی جدول: {updated_users[0].username} ({updated_users[0].score} امتیاز)\n"
-    send_bale_notification(bale_report)
+           
+    # تولید و ارسال پیام اختصاصی به بله برای هر بازی که به پایان رسیده
+    for match_id in finished_match_ids:
+        try:
+            msg_text = generate_bale_summary_message(db_session, match_id)
+            if msg_text:
+                send_bale_notification(msg_text)
+        except Exception as e:
+            print(f"Error sending msg to Bale: {e}")
+
     return {"status": "success"}
 
 if __name__ == "__main__": uvicorn.run("main:app", host="0.0.0.0", port=8000)

@@ -19,7 +19,6 @@
         .audit-table th, .audit-table td { font-size: 0.85em; padding: 10px; text-align: right; vertical-align: middle; border-bottom: 1px solid #eee;}
         .audit-table th { font-weight: bold; color: #2c3e50; }
         
-        /* استایل اختصاصی بخش آکاردئون پیش‌بینی کاربران */
         details.user-pred-box { margin-bottom: 8px; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; }
         details.user-pred-box summary { font-weight: bold; cursor: pointer; color: #2c3e50; font-size: 0.9em; outline: none; margin-bottom: 0; list-style-type: none; display: flex; justify-content: space-between; align-items: center;}
         details.user-pred-box summary::-webkit-details-marker { display: none; }
@@ -114,15 +113,20 @@
             <div>
                 <div class="admin-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-                        <h3 style="margin: 0; font-size: 1.3em; color: #2c3e50;">📋 لیست مسابقات و ثبت نتایج نهایی</h3>
-                        <button x-show="selectedMatches.length > 0" @click="bulkDelete()" style="background-color: #c0392b; border: none; width: auto; padding: 8px 15px; margin: 0; border-radius: 5px;">
-                            🗑 حذف انتخاب‌شده‌ها (<span x-text="selectedMatches.length"></span>)
-                        </button>
+                        <h3 style="margin: 0; font-size: 1.3em; color: #2c3e50;">📋 لیست مسابقات و نتایج</h3>
+                        <div>
+                            <button x-show="selectedMatches.length > 0" @click="bulkRevert()" style="background-color: #f39c12; border: none; width: auto; padding: 8px 15px; margin: 0 5px; border-radius: 5px;">
+                                ⏪ لغو نتیجه (<span x-text="selectedMatches.length"></span>)
+                            </button>
+                            <button x-show="selectedMatches.length > 0" @click="bulkDelete()" style="background-color: #c0392b; border: none; width: auto; padding: 8px 15px; margin: 0; border-radius: 5px;">
+                                🗑 حذف (<span x-text="selectedMatches.length"></span>)
+                            </button>
+                        </div>
                     </div>
                     
                     <div style="margin-bottom: 15px; padding: 8px; background: #eee; border-radius: 5px; font-size: 0.9em;">
                         <label style="margin-bottom: 0; font-weight: bold; cursor: pointer;">
-                            <input type="checkbox" @change="toggleAll($event)"> انتخاب همه مسابقات جهت حذف گروهی
+                            <input type="checkbox" @change="toggleAll($event)"> انتخاب همه برای حذف یا لغو
                         </label>
                     </div>
 
@@ -165,7 +169,7 @@
                         <button @click="bulkFinishMatches()" style="background-color: #1095c1; border: none; font-size: 1.1em; font-weight: bold; width: 100%; padding: 12px; border-radius: 8px; margin: 0;">
                             💾 ثبت / ویرایش همزمان تمام نتایج وارد شده مسابقات
                         </button>
-                        <p style="font-size: 0.85em; color: gray; margin-top: 6px; margin-bottom: 0;">تنها نتایج بازی‌هایی پردازش و محاسبه امتیاز می‌شوند که تیک قرمز رنگ <strong style="color:#c0392b;">«پایان بازی»</strong> آن‌ها فعال باشد.</p>
+                        <p style="font-size: 0.85em; color: gray; margin-top: 6px; margin-bottom: 0;">تنها نتایج بازی‌هایی پردازش می‌شوند که تیک قرمز رنگ <strong style="color:#c0392b;">«پایان بازی»</strong> آن‌ها فعال باشد.</p>
                     </div>
                 </div>
             </div>
@@ -190,10 +194,10 @@
 
             <div class="admin-card" style="background-color: #f8f9fa; border: 2px dashed #ccc; margin-bottom: 0;">
                 <h3 style="font-size: 1.2em; color: #2c3e50; border-bottom: 2px solid #ddd; padding-bottom: 8px; margin-bottom: 15px;">📂 بارگذاری گروهی بازی‌ها (Excel)</h3>
-                <p style="font-size: 0.85em; color: gray; margin-bottom: 15px;">ترتیب دقیق ستون‌های جدول اکسل: میزبان | میهمان | تاریخ | ساعت | ورزشگاه | <strong>نام گروه (ستون ششم)</strong></p>
+                <p style="font-size: 0.85em; color: gray; margin-bottom: 15px;">ترتیب دقیق ستون‌های جدول اکسل: میزبان | میهمان | تاریخ | ساعت | ورزشگاه | <strong>نام گروه</strong></p>
                 <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 25px;">
                     <input type="file" id="excelFile" accept=".xlsx, .xls" style="margin: 0;">
-                    <button @click="uploadExcel()" style="background-color: #8e44ad; border: none; font-weight: bold; margin: 0;">بارگذاری فایل و ثبت خودکار مسابقات</button>
+                    <button @click="uploadExcel()" style="background-color: #8e44ad; border: none; font-weight: bold; margin: 0;">بارگذاری فایل و ثبت مسابقات</button>
                 </div>
             </div>
         </div>
@@ -225,11 +229,6 @@
                                 <td x-text="log.details" style="font-size: 0.95em;"></td>
                                 <td dir="ltr" style="text-align: right; font-family: monospace; font-size: 1.05em; color: #c0392b;" x-text="log.ip_address"></td>
                                 <td dir="ltr" style="text-align: right; font-size: 0.8em; color: #7f8c8d;" x-text="log.user_agent"></td>
-                            </tr>
-                        </template>
-                        <template x-if="logsList.length === 0">
-                            <tr>
-                                <td colspan="6" style="text-align: center; color: gray; padding: 20px; font-style: italic;">هیچ لاگی در سیستم ثبت نشده است.</td>
                             </tr>
                         </template>
                     </tbody>
@@ -274,7 +273,6 @@
                         }));
                         
                         this.selectedMatches = [];
-                        // افزودن فیلد ویرایش یوزرنیم برای هر کاربر
                         this.usersList = usersData.map(u => ({ ...u, editUsername: u.username }));
 
                         let uPreds = {};
@@ -300,7 +298,6 @@
                     fetch('/admin/prize').then(r => r.json()).then(d => this.totalPrize = d.total_prize);
                 },
 
-                // تابع جدید برای تغییر یوزرنیم کاربران
                 saveUsername(u) {
                     if (!u.editUsername || u.editUsername.trim() === '') {
                         return alert("یوزرنیم نمی‌تواند خالی باشد.");
@@ -310,7 +307,7 @@
                     .then(d => {
                         if(d.status === "success") {
                             alert("یوزرنیم با موفقیت تغییر کرد.");
-                            this.initData(); // رفرش اطلاعات تا پیش‌بینی‌ها با یوزرنیم جدید سینک شوند
+                            this.initData();
                         } else {
                             alert(d.detail || "خطا در تغییر یوزرنیم.");
                         }
@@ -334,9 +331,7 @@
                     if (this.totalPrize < 0) return alert("رقم جایزه صندوق نمی‌تواند منفی باشد.");
                     fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") {
-                            alert("کل مبلغ جایزه کل با موفقیت ثبت شد و فرمول تقسیم برای رده‌بندی فعال گردید.");
-                        }
+                        if(d.status === "success") alert("کل مبلغ جایزه کل با موفقیت ثبت شد.");
                     });
                 },
                 
@@ -357,7 +352,7 @@
                     if(!this.nHome || !this.nAway) return alert("وارد کردن نام تیم میزبان و میهمان اجباری است.");
                     fetch(`/matches/?home_team=${encodeURIComponent(this.nHome)}&away_team=${encodeURIComponent(this.nAway)}&match_date=${encodeURIComponent(this.nDate)}&match_time=${encodeURIComponent(this.nTime)}&stadium=${encodeURIComponent(this.nStadium)}`, { method: 'POST' })
                     .then(() => { 
-                        alert("مسابقه جدید با موفقیت به تقویم بازی‌ها اضافه شد."); 
+                        alert("مسابقه جدید با موفقیت اضافه شد."); 
                         this.nHome = ""; this.nAway = ""; this.nDate = ""; this.nTime = ""; this.nStadium = "";
                         this.initData(); 
                     });
@@ -377,11 +372,24 @@
                         alert(d.message); 
                         fileInput.value = "";
                         this.initData(); 
-                    }).catch(() => alert("ساختار فایل اکسل همخوانی ندارد. ستون‌ها را چک کنید."));
+                    }).catch(() => alert("ساختار فایل اکسل همخوانی ندارد."));
+                },
+
+                bulkRevert() {
+                    if(!confirm(`آیا از لغو نتیجه ${this.selectedMatches.length} مسابقه انتخاب شده و بازگشت آن‌ها به حالت "انجام نشده" اطمینان دارید؟\nاین کار نتایج را پاک کرده و امتیازات را مجدداً محاسبه می‌کند.`)) return;
+                    fetch(`/matches/bulk-revert`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ match_ids: this.selectedMatches.map(id => parseInt(id)) })
+                    }).then(() => { 
+                        alert("مسابقات با موفقیت به حالت انجام‌نشده برگشتند و امتیازات جدول اصلاح شد.");
+                        this.selectedMatches = []; 
+                        this.initData(); 
+                    });
                 },
                 
                 bulkDelete() {
-                    if(!confirm(`آیا از حذف قطعی و دائمی ${this.selectedMatches.length} مسابقه انتخاب شده و تمامی پیش‌بینی‌های متصل به آن‌ها اطمینان دارید؟`)) return;
+                    if(!confirm(`آیا از حذف قطعی و دائمی ${this.selectedMatches.length} مسابقه اطمینان دارید؟`)) return;
                     fetch(`/matches/bulk-delete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -401,14 +409,14 @@
                             actual_away: parseInt(m.actualAway) 
                         }));
                         
-                    if (resultsToSave.length === 0) return alert("هیچ مسابقه‌ای جهت ثبت نهایی علامت‌گذاری نشده است. تیک «پایان بازی» مسابقه مورد نظر را روشن کنید.");
+                    if (resultsToSave.length === 0) return alert("تیک «پایان بازی» مسابقه مورد نظر را روشن کنید.");
                     
                     fetch(`/matches/bulk-finish`, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify({ results: resultsToSave }) 
                     }).then(() => { 
-                        alert("نتایج بازی‌ها ثبت، امتیازات کل بازنویسی و گزارش خودکار کانال بله ارسال شد."); 
+                        alert("نتایج بازی‌ها ثبت، امتیازات کل بازنویسی و گزارش ارسال شد."); 
                         this.initData(); 
                     });
                 }

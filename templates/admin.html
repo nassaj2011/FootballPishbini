@@ -17,7 +17,6 @@
         .audit-table th, .audit-table td { font-size: 0.85em; padding: 10px; text-align: right; vertical-align: middle; border-bottom: 1px solid #eee;}
         .audit-table th { font-weight: bold; color: #2c3e50; }
         
-        /* استایل کشویی پیش‌بینی‌های کاربران */
         details.user-pred-box { margin-bottom: 8px; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; }
         details.user-pred-box summary { font-weight: bold; cursor: pointer; color: #2c3e50; font-size: 0.9em; outline: none; margin-bottom: 0; list-style-type: none; display: flex; justify-content: space-between; align-items: center;}
         details.user-pred-box summary::-webkit-details-marker { display: none; }
@@ -36,9 +35,7 @@
 
         <div class="grid" style="grid-template-columns: 1fr 3fr; gap: 20px;">
             
-            <!-- ====== ستون سمت راست ====== -->
             <div>
-                <!-- باکس تنظیم جایزه -->
                 <div class="admin-card" style="background: #fff3cd; border: 1px solid #ffeeba;">
                     <h3 style="font-size: 1.1em; border-bottom: 2px solid #ffeeba; padding-bottom: 10px; color: #856404; margin-bottom: 15px;">💰 تنظیم جایزه کل سیستم</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -48,7 +45,6 @@
                     </div>
                 </div>
 
-                <!-- باکس پیش‌بینی‌های کاربران (جدید) -->
                 <div class="admin-card" style="padding: 1rem;">
                     <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px;">📊 پیش‌بینی‌های کاربران</h3>
                     <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
@@ -56,7 +52,7 @@
                             <details class="user-pred-box">
                                 <summary>
                                     <span x-text="'👤 ' + u.name"></span>
-                                    <span class="pred-badge" x-text="(userPredictions[u.name] || []).length + ' مسابقه'" title="تعداد پیش‌بینی‌های ثبت شده"></span>
+                                    <span class="pred-badge" x-text="(userPredictions[u.name] || []).length + ' مسابقه'"></span>
                                 </summary>
                                 <div class="pred-items">
                                     <template x-if="userPredictions[u.name] && userPredictions[u.name].length > 0">
@@ -81,7 +77,6 @@
                     </div>
                 </div>
 
-                <!-- باکس وضعیت کاربران -->
                 <div class="admin-card" style="background: #eef2f5;">
                     <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px;">🕒 آخرین ورود کاربران</h3>
                     <ul class="user-log-list">
@@ -95,9 +90,7 @@
                 </div>
             </div>
 
-            <!-- ====== ستون سمت چپ ====== -->
             <div>
-                <!-- لیست مسابقات به بالاترین قسمت منتقل شد -->
                 <div class="admin-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
                         <h3 style="margin: 0;">📋 لیست مسابقات و ثبت نتایج نهایی</h3>
@@ -117,20 +110,17 @@
                             <div style="display: flex; align-items: center; gap: 15px;">
                                 <input type="checkbox" x-model="selectedMatches" :value="match.id" title="انتخاب برای حذف">
                                 <div>
-                                    <!-- نمایش عادی -->
                                     <div x-show="!match.isEditing" style="display: inline-block;">
-                                    <strong style="font-size: 1.1em;" x-text="match.home_team"></strong> ⚡ <strong style="font-size: 1.1em;" x-text="match.away_team"></strong>
-                                    <a href="#" @click.prevent="match.isEditing = true" style="font-size: 0.75em; margin-right: 10px; color: #1095c1; text-decoration: none;">✏️ ویرایش نام</a>
-                                </div>
-                                    <!-- حالت ویرایش -->
+                                        <strong style="font-size: 1.1em;" x-text="match.home_team"></strong> ⚡ <strong style="font-size: 1.1em;" x-text="match.away_team"></strong>
+                                        <a href="#" @click.prevent="match.isEditing = true" style="font-size: 0.75em; margin-right: 10px; color: #1095c1; text-decoration: none;">✏️ ویرایش نام</a>
+                                    </div>
                                     <div x-show="match.isEditing" style="display: inline-flex; gap: 5px; align-items: center; margin-bottom: 5px;">
-                                    <input type="text" x-model="match.home_team" style="width: 90px !important; padding: 2px; margin: 0; font-size: 0.9em; text-align: center;">
-                                    <span>⚡</span>
-                                    <input type="text" x-model="match.away_team" style="width: 90px !important; padding: 2px; margin: 0; font-size: 0.9em; text-align: center;">
-                                 <button @click="saveMatchEdit(match)" style="padding: 2px 10px; width: auto; margin: 0; font-size: 0.8em; background-color: #27ae60; border: none;">ذخیره</button>
-                                </div>
-
-
+                                        <input type="text" x-model="match.home_team" style="width: 100px !important; padding: 2px; margin: 0; font-size: 0.9em; text-align: center;">
+                                        <span>⚡</span>
+                                        <input type="text" x-model="match.away_team" style="width: 100px !important; padding: 2px; margin: 0; font-size: 0.9em; text-align: center;">
+                                        <button @click="saveMatchEdit(match)" style="padding: 2px 10px; width: auto; margin: 0; font-size: 0.8em; background-color: #27ae60; border: none;">ذخیره</button>
+                                    </div>
+                                    
                                     <div style="font-size: 0.8em; color: gray; margin-top: 5px;">
                                         📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏆 <span x-text="match.group_name"></span>
                                     </div>
@@ -161,7 +151,6 @@
             </div>
         </div>
 
-        <!-- ====== ردیف فرم‌های ایجاد مسابقه که به پایین منتقل شدند ====== -->
         <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="admin-card" style="margin-bottom: 0;">
                 <h3 style="font-size: 1.2em;">➕ ایجاد مسابقه جدید (دستی)</h3>
@@ -177,7 +166,7 @@
 
             <div class="admin-card" style="background-color: #f8f9fa; border: 2px dashed #ccc; margin-bottom: 0;">
                 <h3 style="font-size: 1.2em;">📂 بارگذاری گروهی بازی‌ها (Excel)</h3>
-                <p style="font-size: 0.85em; color: gray; margin-bottom: 10px;">ستون‌ها به ترتیب: میزبان | میهمان | تاریخ | ساعت | ورزشگاه | <strong>نام گروه (ستون ۶)</strong></p>
+                <p style="font-size: 0.85em; color: gray; margin-bottom: 10px;">ستون‌ها به ترتیب: میزبان | میهمان | تاریخ | ساعت | ورزشگاه | نام گروه</p>
                 <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
                     <input type="file" id="excelFile" accept=".xlsx, .xls">
                     <button @click="uploadExcel()" style="background-color: #8e44ad; border: none;">بارگذاری و ثبت خودکار</button>
@@ -185,14 +174,13 @@
             </div>
         </div>
 
-        <!-- باکس لاگ‌ها در انتهای صفحه -->
         <div class="admin-card" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
                 <h3 style="margin: 0; font-size: 1.2em;">🔍 تاریخچه فعالیت‌های سیستم (Audit Logs)</h3>
                 <span style="font-size: 0.85em; color: gray;">نمایش ۳۰۰ عملیات اخیر</span>
             </div>
             
-            <div style="overflow-x: auto; max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
+            <div style="overflow-x: auto; max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
                 <table class="striped audit-table" style="margin: 0;">
                     <thead style="position: sticky; top: 0; background: #eaf4f4; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1); z-index: 10;">
                         <tr>
@@ -224,19 +212,18 @@
                 </table>
             </div>
         </div>
-
     </main>
 
     <script>
         function adminApp() {
             return {
-                isReady: false,
-                matches: [],
-                usersList: [],
+                isReady: false, 
+                matches: [], 
+                usersList: [], 
                 logsList: [], 
-                selectedMatches: [],
-                userPredictions: {}, // دیکشنری جدید برای ذخیره پیش‌بینی‌های دسته‌بندی شده کاربران
-                nHome: "", nAway: "", nDate: "", nTime: "", nStadium: "",
+                selectedMatches: [], 
+                userPredictions: {},
+                nHome: "", nAway: "", nDate: "", nTime: "", nStadium: "", 
                 totalPrize: 0,
                 
                 initData() {
@@ -247,33 +234,26 @@
                     
                     this.isReady = true;
 
-                    // دریافت همزمان اطلاعات برای پردازش یکپارچه
                     Promise.all([
                         fetch('/matches/list').then(r => r.json()),
                         fetch('/users/list').then(r => r.json()),
                         fetch('/predictions/all').then(r => r.json())
                     ]).then(([matchesData, usersData, predsData]) => {
-                        
-                        // آماده‌سازی مسابقات
                         this.matches = matchesData.map(m => ({
                             ...m,
                             actualHome: m.actual_home_goals !== null ? m.actual_home_goals : 0,
                             actualAway: m.actual_away_goals !== null ? m.actual_away_goals : 0,
-                            markAsFinished: m.status === 'finished'
+                            markAsFinished: m.status === 'finished',
+                            isEditing: false // کنترل وضعیت ویرایش نام تیم
                         }));
                         this.selectedMatches = [];
                         this.usersList = usersData;
 
-                        // پردازش و گروه‌بندی پیش‌بینی‌ها برای هر کاربر
                         let uPreds = {};
-                        this.usersList.forEach(u => uPreds[u.name] = []); // ایجاد آرایه خالی برای همه
-                        
+                        this.usersList.forEach(u => uPreds[u.name] = []);
                         for (const [matchId, matchPreds] of Object.entries(predsData)) {
-                            // پیدا کردن نام بازی
                             const matchObj = this.matches.find(m => m.id === parseInt(matchId));
                             const matchName = matchObj ? `${matchObj.home_team} - ${matchObj.away_team}` : `بازی ${matchId}`;
-                            
-                            // پخش کردن پیش‌بینی‌ها داخل پروفایل کاربران
                             matchPreds.forEach(p => {
                                 if(!uPreds[p.user_name]) uPreds[p.user_name] = [];
                                 uPreds[p.user_name].push({ matchName: matchName, predHome: p.home, predAway: p.away });
@@ -286,45 +266,61 @@
                     fetch('/admin/prize').then(r => r.json()).then(d => this.totalPrize = d.total_prize);
                 },
                 
-                updatePrize() {
-                    if (this.totalPrize < 0) return alert("مبلغ جایزه نمی‌تواند عددی منفی باشد.");
-                    fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })
+                saveMatchEdit(m) {
+                    fetch(`/matches/edit/${m.id}?home=${encodeURIComponent(m.home_team)}&away=${encodeURIComponent(m.away_team)}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") alert("مبلغ جایزه با موفقیت در سیستم ثبت شد.");
+                        if(d.status === "success") {
+                            m.isEditing = false;
+                            alert("نام تیم با موفقیت ویرایش شد.");
+                        } else {
+                            alert("خطا در ذخیره نام تیم.");
+                        }
                     });
                 },
-
-                logout() {
-                    localStorage.removeItem('footballUser');
-                    window.location.href = '/';
+                
+                updatePrize() {
+                    fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })
+                    .then(r => r.json()).then(d => {
+                        if(d.status === "success") {
+                            alert("مبلغ جایزه با موفقیت در سیستم ثبت شد.");
+                        }
+                    });
                 },
                 
-                toggleAll(e) {
-                    if (e.target.checked) this.selectedMatches = this.matches.map(m => m.id.toString());
-                    else this.selectedMatches = [];
+                logout() { 
+                    localStorage.removeItem('footballUser'); 
+                    window.location.href = '/'; 
+                },
+                
+                toggleAll(e) { 
+                    if (e.target.checked) {
+                        this.selectedMatches = this.matches.map(m => m.id.toString());
+                    } else {
+                        this.selectedMatches = [];
+                    }
                 },
                 
                 createMatch() {
                     if(!this.nHome || !this.nAway) return alert("نام میزبان و میهمان الزامی است");
                     fetch(`/matches/?home_team=${this.nHome}&away_team=${this.nAway}&match_date=${this.nDate}&match_time=${this.nTime}&stadium=${this.nStadium}`, { method: 'POST' })
-                    .then(() => { alert("مسابقه جدید با موفقیت ثبت شد."); this.initData(); });
-                    saveMatchEdit(m) {
-                    fetch(`/matches/edit/${m.id}?home=${m.home_team}&away=${m.away_team}`, { method: 'POST' })
-                    .then(r => r.json()).then(d => {
-                    if(d.status === "success") m.isEditing = false;
-                    else alert("خطا در ذخیره نام");
+                    .then(() => { 
+                        alert("مسابقه جدید با موفقیت ثبت شد."); 
+                        this.nHome = ""; this.nAway = ""; this.nDate = ""; this.nTime = ""; this.nStadium = "";
+                        this.initData(); 
                     });
-
                 },
                 
                 uploadExcel() {
                     const f = document.getElementById('excelFile').files[0];
                     if(!f) return alert("لطفاً فایل اکسل را انتخاب کنید");
-                    const fd = new FormData(); fd.append("file", f);
+                    const fd = new FormData(); 
+                    fd.append("file", f);
                     fetch('/matches/upload/', { method: 'POST', body: fd })
                     .then(r => r.json())
-                    .then(d => { alert(d.message); this.initData(); })
-                    .catch(() => alert("خطا در بارگذاری فایل. ساختار اکسل را بررسی کنید."));
+                    .then(d => { 
+                        alert(d.message); 
+                        this.initData(); 
+                    });
                 },
                 
                 bulkDelete() {
@@ -333,27 +329,30 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ match_ids: this.selectedMatches.map(id => parseInt(id)) })
-                    }).then(() => { alert("مسابقات انتخاب شده با موفقیت حذف شدند."); this.initData(); });
+                    }).then(() => { 
+                        alert("مسابقات انتخاب شده با موفقیت حذف شدند.");
+                        this.initData(); 
+                    });
                 },
                 
                 bulkFinishMatches() {
                     const resultsToSave = this.matches
                         .filter(m => m.markAsFinished)
-                        .map(m => ({
-                            match_id: m.id,
-                            actual_home: parseInt(m.actualHome),
-                            actual_away: parseInt(m.actualAway)
+                        .map(m => ({ 
+                            match_id: m.id, 
+                            actual_home: parseInt(m.actualHome), 
+                            actual_away: parseInt(m.actualAway) 
                         }));
-                    
+                        
                     if (resultsToSave.length === 0) return alert("هیچ مسابقه‌ای برای ثبت نتیجه انتخاب نشده است. تیک «پایان بازی» را بزنید.");
                     
-                    fetch(`/matches/bulk-finish`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ results: resultsToSave })
-                    }).then(() => {
-                        alert("نتایج با موفقیت ثبت شد و جدول رده‌بندی کاربران از نو محاسبه گردید.");
-                        this.initData();
+                    fetch(`/matches/bulk-finish`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ results: resultsToSave }) 
+                    }).then(() => { 
+                        alert("نتایج با موفقیت ثبت شد و جدول رده‌بندی کاربران بروزرسانی گردید."); 
+                        this.initData(); 
                     });
                 }
             };

@@ -17,8 +17,8 @@ from datetime import datetime
 import uvicorn
 import requests
 
-BALE_TOKEN = "توکن_ربات_شما_که_از_بات‌فادر_گرفتید"
-BALE_CHAT_ID = "آیدی_کانال_شما"
+BALE_TOKEN = "928514616:MBid8RZQQ3J5g5zWWuYh0ChrjvlRTCVzLws"
+BALE_CHAT_ID = "@Golchine_Akhbar"
 
 def send_bale_notification(message_text: str):
     url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"

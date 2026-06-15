@@ -44,7 +44,6 @@ async def lifespan(app: FastAPI):
     with db.engine.begin() as conn:
         try: conn.execute(text("ALTER TABLE users ADD COLUMN previous_rank INTEGER DEFAULT 1;"))
         except Exception: pass
-        # تزریق امن ستون یوزرنیم و مقداردهی پیش‌فرض کاربران قدیمی با نامشان
         try: 
             conn.execute(text("ALTER TABLE users ADD COLUMN username TEXT;"))
             conn.execute(text("UPDATE users SET username = name WHERE username IS NULL;"))
@@ -194,7 +193,7 @@ def get_leaderboard(db_session: Session = Depends(get_db)): return calculate_lea
 @app.get("/predictions/all")
 def get_all_predictions(db_session: Session = Depends(get_db)):
     preds = db_session.query(db.Prediction).all()
-    users = {u.id: u.username for u in db_session.query(db.User).all()} # نمایش براساس یوزرنیم
+    users = {u.id: u.username for u in db_session.query(db.User).all()}
     result = {}
     for p in preds:
         if p.match_id not in result: result[p.match_id] = []
@@ -229,6 +228,19 @@ def login_user(request: Request, username: str, password: str, db_session: Sessi
     db_session.commit()
     log_action(db_session, request, user.username, "ورود کاربر", "ورود موفق به سیستم")
     return {"status": "success", "user_id": user.id, "name": user.name, "username": user.username, "is_admin": False}
+
+# ---- API جدید برای ویرایش یوزرنیم توسط ادمین ----
+@app.post("/users/edit/{target_user_id}")
+def edit_user_username(target_user_id: int, new_username: str, db_session: Session = Depends(get_db)):
+    existing = db_session.query(db.User).filter(db.User.username == new_username).first()
+    if existing and existing.id != target_user_id:
+        return {"status": "error", "detail": "این یوزرنیم قبلاً توسط کاربر دیگری ثبت شده است."}
+    user = db_session.query(db.User).filter(db.User.id == target_user_id).first()
+    if user:
+        user.username = new_username
+        db_session.commit()
+        return {"status": "success"}
+    return {"status": "error", "detail": "کاربر یافت نشد."}
 
 @app.post("/matches/edit/{match_id}")
 def edit_match_names(match_id: int, home: str, away: str, db_session: Session = Depends(get_db)):
@@ -341,3 +353,4 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
     return {"status": "success"}
 
 if __name__ == "__main__": uvicorn.run("main:app", host="0.0.0.0", port=8000)
+

@@ -48,13 +48,34 @@
                     </div>
                 </div>
 
+                <div class="admin-card" style="padding: 1rem; background-color: #f0f8ff; border: 1px solid #cce7ff;">
+                    <h3 style="font-size: 1.1em; border-bottom: 2px solid #b3d9ff; padding-bottom: 10px; margin-bottom: 15px; color: #005ce6;">👥 مدیریت یوزرنیم کاربران</h3>
+                    <p style="font-size: 0.75em; color: #555; margin-bottom: 10px;">در اینجا می‌توانید یوزرنیم نمایشی افراد را ویرایش کنید:</p>
+                    <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                        <template x-for="u in usersList" :key="u.id">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #d9ebff;">
+                                <div style="font-size: 0.8em; width: 40%; color: #333;">
+                                    <strong x-text="u.name"></strong>
+                                </div>
+                                <div style="display: flex; gap: 5px; width: 60%;">
+                                    <input type="text" x-model="u.editUsername" placeholder="یوزرنیم" style="height: 30px !important; margin: 0; padding: 2px 5px; font-size: 0.8em; width: 100%;">
+                                    <button @click="saveUsername(u)" style="height: 30px !important; padding: 0 10px; margin: 0; font-size: 0.8em; background: #0073e6; border: none;">ثبت</button>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="usersList.length === 0">
+                            <div style="text-align: center; font-size: 0.8em; color: gray;">کاربری یافت نشد.</div>
+                        </template>
+                    </div>
+                </div>
+
                 <div class="admin-card" style="padding: 1rem;">
                     <h3 style="font-size: 1.1em; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px;">📊 پیش‌بینی‌های کاربران</h3>
                     <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
                         <template x-for="u in usersList" :key="u.id">
                             <details class="user-pred-box">
                                 <summary>
-                                    <span x-text="'👤 ' + u.username + ' (' + u.name + ')'" style="font-size: 0.9em;"></span>
+                                    <span x-text="'👤 ' + u.username + ' (' + u.name + ')'" style="font-size: 0.85em;"></span>
                                     <span class="pred-badge" x-text="(userPredictions[u.username] || []).length + ' بازی'"></span>
                                 </summary>
                                 <div class="pred-items">
@@ -238,14 +259,12 @@
                     
                     this.isReady = true;
 
-                    // دریافت تمام نیازمندی‌های پنل به صورت همزمان از سرور
                     Promise.all([
                         fetch('/matches/list').then(r => r.json()),
                         fetch('/users/list').then(r => r.json()),
                         fetch('/predictions/all').then(r => r.json())
                     ]).then(([matchesData, usersData, predsData]) => {
                         
-                        // ۱. مپ کردن ساختار لیست بازی‌ها
                         this.matches = matchesData.map(m => ({
                             ...m,
                             actualHome: m.actual_home_goals !== null ? m.actual_home_goals : 0,
@@ -255,9 +274,9 @@
                         }));
                         
                         this.selectedMatches = [];
-                        this.usersList = usersData;
+                        // افزودن فیلد ویرایش یوزرنیم برای هر کاربر
+                        this.usersList = usersData.map(u => ({ ...u, editUsername: u.username }));
 
-                        // ۲. گروه‌بندی هوشمند پیش‌بینی‌ها بر اساس ساختار تفکیک‌شده یوزرنیم جدید
                         let uPreds = {};
                         this.usersList.forEach(u => uPreds[u.username] = []);
                         
@@ -277,17 +296,30 @@
                         this.userPredictions = uPreds;
                     });
 
-                    // دریافت لاگ‌ها و جایزه تنظیم شده از دیتابیس
                     fetch('/admin/logs').then(r => r.json()).then(d => this.logsList = d);
                     fetch('/admin/prize').then(r => r.json()).then(d => this.totalPrize = d.total_prize);
                 },
+
+                // تابع جدید برای تغییر یوزرنیم کاربران
+                saveUsername(u) {
+                    if (!u.editUsername || u.editUsername.trim() === '') {
+                        return alert("یوزرنیم نمی‌تواند خالی باشد.");
+                    }
+                    fetch(`/users/edit/${u.id}?new_username=${encodeURIComponent(u.editUsername.trim())}`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(d => {
+                        if(d.status === "success") {
+                            alert("یوزرنیم با موفقیت تغییر کرد.");
+                            this.initData(); // رفرش اطلاعات تا پیش‌بینی‌ها با یوزرنیم جدید سینک شوند
+                        } else {
+                            alert(d.detail || "خطا در تغییر یوزرنیم.");
+                        }
+                    });
+                },
                 
                 saveMatchEdit(m) {
-                    if(!m.home_team.strip || !m.away_team.strip) {
-                        m.home_team = m.home_team.trim();
-                        m.away_team = m.away_team.trim();
-                    }
-                    fetch(`/matches/edit/${m.id}?home=${encodeURIComponent(m.home_team)}&away=${encodeURIComponent(m.away_team)}`, { method: 'POST' })
+                    if(!m.home_team.trim() || !m.away_team.trim()) return alert("نام تیم نمی‌تواند خالی باشد");
+                    fetch(`/matches/edit/${m.id}?home=${encodeURIComponent(m.home_team.trim())}&away=${encodeURIComponent(m.away_team.trim())}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
                         if(d.status === "success") {
                             m.isEditing = false;

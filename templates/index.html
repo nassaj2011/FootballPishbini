@@ -9,38 +9,28 @@
         body { font-family: Tahoma, Arial, sans-serif; background-color: #f4f7f6; font-size: 14px; }
         .container { max-width: 1200px; padding: 0 15px; }
         .auth-box { max-width: 400px; margin: 1rem auto; padding: 1.5rem; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        
-        /* کاهش فاصله‌های داخلی و حاشیه‌ها برای جمع‌وجور شدن کارت‌ها */
         .match-card { margin-bottom: 0.8rem; padding: 0.8rem; border: 1px solid #ddd; border-radius: 8px; background: white; transition: all 0.3s ease; font-size: 1rem; }
         .match-card.predicted { background-color: rgb(176, 224, 230); border-color: #9ccdd3; }
         .match-card.locked { background-color: #f1f3f5; border-color: #dee2e6; opacity: 0.9; }
         .match-card.predicted.locked { background-color: #d1e8ea; }
-        
         .tabs { display: flex; justify-content: space-around; margin-bottom: 1rem; cursor: pointer; border-bottom: 2px solid #eee; }
         .tab { padding: 10px; font-weight: bold; color: gray; } 
         .tab.active { color: #1095c1; border-bottom: 2px solid #1095c1; margin-bottom: -2px; }
-        
         .countdown { font-size: 0.8em; background-color: #ffeaa7; padding: 3px 8px; border-radius: 5px; color: #d35400; display: inline-block; margin-top: 5px; font-weight: bold;}
         .locked-msg-container { margin-top: 5px; padding: 5px 10px; background: #fadbd8; border-radius: 5px; border: 1px solid #f5b7b1; display: flex; justify-content: center; align-items: center; font-size: 0.8em; }
         .locked-msg { color: #c0392b; font-weight: bold; margin: 0;}
         .finished-score { background-color: #d4edda; color: #155724; padding: 4px 10px; border-radius: 5px; font-weight: bold; font-size: 1.1em; margin: 0; border: 1px solid #c3e6cb;}
-        
         .pred-list { margin-top: 15px; background: #fdfdfd; border: 1px solid #e0e0e0; padding: 12px; border-radius: 8px; font-size: 0.85em; overflow: visible; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
         .pred-list li { border-bottom: none; background: white; padding: 8px 10px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); border: 1px solid #eee; display: flex; flex-direction: column; gap: 5px; }
-        
         .leaderboard-table th, .leaderboard-table td { font-size: 0.8em; text-align: center; padding: 8px 5px; vertical-align: middle; }
         .urgent-alert { background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .urgent-match-badge { display: inline-block; background-color: #fff; padding: 4px 12px; border-radius: 20px; margin-left: 8px; margin-top: 8px; border: 1px solid #f9ca24; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #2c3e50; }
-        
         .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; width: 100%; text-align: right; box-sizing: border-box;}
         .success-checkmark { color: #20c997; font-weight: bold; font-size: 0.9em; margin-left: 5px; animation: fadeIn 0.3s ease-in-out; }
-        
         .rank-up { color: #2ecc71; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
         .rank-down { color: #e74c3c; margin-left: 4px; font-weight: bold; font-size: 1.1em; }
         .rank-stable { color: #95a5a6; margin-left: 4px; font-weight: bold; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
         details.rules-accordion summary { font-size: 0.9em; font-weight: bold; color: #2c3e50; cursor: pointer; margin-bottom: 0; outline: none; }
         details.rules-accordion summary::marker { color: #1095c1; }
         .rules-content { font-size: 0.85em; color: #444; margin-top: 10px; line-height: 1.6; max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px dashed #d1e5e5; padding-top: 10px; }
@@ -56,6 +46,7 @@
             <h1 style="color: #2c3e50; margin: 0; font-size: 1.6em;">⚽ سیستم پیش‌بینی مسابقات ⚽</h1>
         </article>
 
+        <!-- بخش ورود / ثبت‌نام -->
         <div x-show="!isLoggedIn" class="auth-box">
             <div class="tabs">
                 <div class="tab" :class="{ 'active': authMode === 'login' }" @click="authMode = 'login'">ورود</div>
@@ -77,8 +68,10 @@
             </div>
         </div>
 
+        <!-- داشبورد کاربری -->
         <div x-show="isLoggedIn" style="display: none;">
             
+            <!-- هدر داشبورد -->
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: flex-start;">
                 
                 <div style="flex: 1; min-width: 300px; background-color: #eaf4f4; border-radius: 8px; padding: 0.8rem 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
@@ -121,8 +114,10 @@
 
             </div>
 
+            <!-- دو ستون اصلی -->
             <div class="grid" style="grid-template-columns: 4fr 5fr; gap: 15px;">
                 
+                <!-- ستون راست: لیست بازی‌های آینده -->
                 <div>
                     <article style="padding: 0.8rem;">
                         <h3 style="color: #2980b9; margin-bottom: 10px; font-size: 1.15em;">بازی‌ها و پیش‌بینی (آینده)</h3>
@@ -130,7 +125,7 @@
                             <template x-for="match in upcomingMatches" :key="match.id">
                                 <div>
                                     
-                                    <div x-show="match.home_team.includes('ایران') && match.away_team.includes('نیوزلند')"
+                                    <div x-show="match.home_team && match.home_team.includes('ایران') && match.away_team && match.away_team.includes('نیوزلند')"
                                          style="background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); color: white; text-align: center; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #f5b041;">
                                         🚀 شروع رسمی مسابقات پیش‌بینی دوستانه 🚀
                                     </div>
@@ -205,7 +200,9 @@
                     </article>
                 </div>
 
+                <!-- ستون چپ: رده‌بندی + بازی‌های برگزار شده -->
                 <div>
+                    <!-- ۱. جدول رده‌بندی -->
                     <article style="margin-bottom: 15px; padding: 0.8rem;">
                         <h3 style="margin-bottom: 10px; font-size: 1.15em;">جدول رده‌بندی 🏆</h3>
                         <div style="overflow-x: auto;">
@@ -239,6 +236,7 @@
                         </div>
                     </article>
 
+                    <!-- ۲. بازی‌های برگزار شده -->
                     <article style="padding: 0.8rem;">
                         <h3 style="color: #27ae60; margin-bottom: 10px; font-size: 1.15em;">بازی‌های برگزار شده 🏁</h3>
                         <div dir="rtl">
@@ -304,7 +302,7 @@
             return {
                 isLoggedIn: false, 
                 authMode: 'login', 
-                currentUser: { id: null, username: "" },
+                currentUser: { id: null, username: "", user_id: null },
                 loginUsername: "", 
                 loginPassword: "", 
                 regName: "", 
@@ -335,18 +333,24 @@
                     }
                     if (!this.isLoggedIn) return;
 
+                    // اصلاح باگ فراخوانی آیدی کاربر با پشتیبانی از هر دو فرمت قدیمی و جدید
+                    const accurateUserId = this.currentUser.user_id || this.currentUser.id;
+
                     Promise.all([
                         fetch('/matches/list').then(r => { 
                             const sd = r.headers.get('Date'); 
                             if(sd) this.timeOffset = new Date(sd).getTime() - Date.now(); 
                             return r.json(); 
                         }), 
-                        fetch(`/predictions/user/${this.currentUser.id}`).then(r => r.json())
+                        fetch(`/predictions/user/${accurateUserId}`).then(r => r.json())
                     ]).then(([matchesData, userPredsData]) => {
                         const userPredsMap = {}; 
-                        userPredsData.forEach(p => { 
-                            userPredsMap[p.match_id] = { home: p.predicted_home_goals, away: p.predicted_away_goals }; 
-                        });
+                        
+                        if (Array.isArray(userPredsData)) {
+                            userPredsData.forEach(p => { 
+                                userPredsMap[p.match_id] = { home: p.predicted_home_goals, away: p.predicted_away_goals }; 
+                            });
+                        }
                         
                         this.matches = matchesData.map(m => { 
                             const savedPred = userPredsMap[m.id]; 
@@ -363,7 +367,7 @@
                             }; 
                         });
                         this.startCountdown();
-                    });
+                    }).catch(err => console.error("Error loading predictions: ", err));
 
                     fetch('/leaderboard/').then(r => r.json()).then(data => this.leaderboard = data);
                     fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
@@ -425,18 +429,20 @@
                         if(d.status === "success") { 
                             localStorage.setItem('footballUser', JSON.stringify(d)); 
                             if(d.is_admin) { window.location.href = '/admin'; } else { this.currentUser = d; this.isLoggedIn = true; this.initData(); } 
-                        } else alert("اطلاعات اشتباه است");
+                        } else alert("اطلاعات ورود اشتباه است.");
                     });
                 },
 
                 register() {
                     if(this.regPassword !== this.regConfirm) return alert("رمز عبور تطابق ندارد!");
+                    if(!this.regUsername || !this.regName) return alert("لطفا نام و یوزرنیم را وارد کنید.");
+                    
                     fetch(`/users/?name=${this.regName}&username=${this.regUsername}&password=${this.regPassword}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
                         if(d.status === "success") { 
                             localStorage.setItem('footballUser', JSON.stringify(d)); 
                             this.currentUser = d; this.isLoggedIn = true; this.initData(); 
-                        } else alert("یوزرنیم تکراری است یا خطایی رخ داده");
+                        } else alert(d.detail || "خطایی رخ داده است.");
                     });
                 },
 
@@ -448,7 +454,9 @@
 
                 submitPrediction(m) {
                     if (m.isLocked) return alert("زمان ثبت پیش‌بینی تمام شده است!");
-                    fetch(`/predictions/?user_id=${this.currentUser.id}&match_id=${m.id}&home_goals=${m.predHome}&away_goals=${m.predAway}`, { method: 'POST' })
+                    const accurateUserId = this.currentUser.user_id || this.currentUser.id;
+                    
+                    fetch(`/predictions/?user_id=${accurateUserId}&match_id=${m.id}&home_goals=${m.predHome}&away_goals=${m.predAway}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
                         if(d.status === "success") {
                             m.successMsg = true;
@@ -466,3 +474,5 @@
     </script>
 </body>
 </html>
+
+

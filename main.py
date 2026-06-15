@@ -18,7 +18,7 @@ import uvicorn
 import requests
 
 # --- تنظیمات اتصال به بله ---
-BALE_TOKEN = "928514616:MBid8RZQQ3J5g5zWWuYh0ChrjvlRTCVzLws"
+BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
 ADMIN_BALE_ID = "123456789" # آیدی عددی شخصی شما در بله برای ارسال دستورات از PV (حتما تغییر دهید)
 
@@ -421,7 +421,7 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
             text = data["message"].get("text", "").strip()
 
             if chat_id != ADMIN_BALE_ID:
-                send_bale_notification("⛔️ مجوز استفاده ندارید.", target_chat_id=chat_id)
+                send_bale_notification(f"سلام مدیر! آیدی عددی شما این است:\n{chat_id}\nاین عدد را کپی کرده و در متغیر ADMIN_BALE_ID قرار دهید.", target_chat_id=chat_id)
                 return {"status": "unauth"}
 
             if text == "/users":

@@ -9,7 +9,7 @@
         body { font-family: Tahoma, Arial, sans-serif; background-color: #fcfcfc; font-size: 14px; }
         .container { max-width: 1200px; margin-top: 2rem; padding: 0 15px; }
         .admin-card { background: white; padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .score-inputs input { width: 75px !important; font-size: 1.2em; font-weight: bold; text-align: center; margin: 0 5px; height: 38px !important; padding: 0 !important; }
+        .score-inputs input { width: 65px !important; font-size: 1.2em; font-weight: bold; text-align: center; margin: 0 5px; height: 35px !important; padding: 0 !important; }
         .match-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #eee; transition: background 0.2s;}
         .match-row:hover { background-color: #f8f9fa; }
         .match-row.finished-row { background-color: #f0fdf4; border-right: 5px solid #27ae60; }
@@ -126,7 +126,7 @@
                     
                     <div style="margin-bottom: 15px; padding: 8px; background: #eee; border-radius: 5px; font-size: 0.9em;">
                         <label style="margin-bottom: 0; font-weight: bold; cursor: pointer;">
-                            <input type="checkbox" @change="toggleAll($event)"> انتخاب همه برای حذف یا لغو
+                            <input type="checkbox" @change="toggleAll($event)"> انتخاب همه برای حذف یا لغو گروهی
                         </label>
                     </div>
 
@@ -161,13 +161,20 @@
                                 <input type="number" min="0" x-model.number="match.actualHome" :disabled="!match.markAsFinished" style="background: white;">
                                 <span style="font-weight: bold; color: #555;">-</span>
                                 <input type="number" min="0" x-model.number="match.actualAway" :disabled="!match.markAsFinished" style="background: white;">
+                                
+                                <button @click="finishSingleMatch(match)" 
+                                        :disabled="!match.markAsFinished" 
+                                        :style="match.status === 'finished' ? 'background-color: #16a085; border-color: #138370;' : 'background-color: #27ae60; border-color: #21935c;'" 
+                                        style="padding: 2px 10px; width: auto; margin: 0 0 0 5px; font-size: 0.8em; border: none; height: 30px !important; line-height: 1; border-radius: 4px; color: white; font-weight: bold;">
+                                    <span x-text="match.status === 'finished' ? 'ویرایش تک بازی' : 'ثبت تک بازی'"></span>
+                                </button>
                             </div>
                         </div>
                     </template>
 
                     <div class="sticky-btn">
                         <button @click="bulkFinishMatches()" style="background-color: #1095c1; border: none; font-size: 1.1em; font-weight: bold; width: 100%; padding: 12px; border-radius: 8px; margin: 0;">
-                            💾 ثبت / ویرایش همزمان تمام نتایج وارد شده مسابقات
+                            💾 ثبت / ویرایش همزمان تمام نتایج وارد شده مسابقات (گروهی)
                         </button>
                         <p style="font-size: 0.85em; color: gray; margin-top: 6px; margin-bottom: 0;">تنها نتایج بازی‌هایی پردازش می‌شوند که تیک قرمز رنگ <strong style="color:#c0392b;">«پایان بازی»</strong> آن‌ها فعال باشد.</p>
                     </div>
@@ -376,7 +383,7 @@
                 },
 
                 bulkRevert() {
-                    if(!confirm(`آیا از لغو نتیجه ${this.selectedMatches.length} مسابقه انتخاب شده و بازگشت آن‌ها به حالت "انجام نشده" اطمینان دارید؟\nاین کار نتایج را پاک کرده و امتیازات را مجدداً محاسبه می‌کند.`)) return;
+                    if(!confirm(`آیا از لغو نتیجه ${this.selectedMatches.length} مسابقه انتخاب شده و بازگشت آن‌ها به حالت "انجام نشده" اطمینان دارید؟`)) return;
                     fetch(`/matches/bulk-revert`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -396,6 +403,26 @@
                         body: JSON.stringify({ match_ids: this.selectedMatches.map(id => parseInt(id)) })
                     }).then(() => { 
                         alert("مسابقات با موفقیت از سیستم حذف شدند.");
+                        this.initData(); 
+                    });
+                },
+
+                // تابع جدید و هوشمند برای ثبت یا ویرایش نتیجه "یک تک بازی" اختصاصی
+                finishSingleMatch(m) {
+                    if (!m.markAsFinished) return alert("ابتدا باید تیک گزینه «پایان بازی» را فعال کنید.");
+                    
+                    const resultToSave = [{ 
+                        match_id: m.id, 
+                        actual_home: parseInt(m.actualHome), 
+                        actual_away: parseInt(m.actualAway) 
+                    }];
+                    
+                    fetch(`/matches/bulk-finish`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ results: resultToSave }) 
+                    }).then(() => { 
+                        alert(`نتیجه رقابت ${m.home_team} و ${m.away_team} با موفقیت ثبت نهایی شد و پیام کانال بله ارسال گردید.`); 
                         this.initData(); 
                     });
                 },

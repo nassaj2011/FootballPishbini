@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8"><title>لیگ پیش‌بینی فوتبال</title>
+    <meta charset="UTF-8">
+    <title>لیگ پیش‌بینی فوتبال</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
@@ -16,9 +17,10 @@
         .match-card.predicted.locked { background-color: #d1e8ea; }
         
         .tabs { display: flex; justify-content: space-around; margin-bottom: 1rem; cursor: pointer; border-bottom: 2px solid #eee; }
-        .tab { padding: 10px; font-weight: bold; color: gray; } .tab.active { color: #1095c1; border-bottom: 2px solid #1095c1; margin-bottom: -2px; }
-        .countdown { font-size: 0.8em; background-color: #ffeaa7; padding: 3px 8px; border-radius: 5px; color: #d35400; display: inline-block; margin-top: 5px; font-weight: bold;}
+        .tab { padding: 10px; font-weight: bold; color: gray; } 
+        .tab.active { color: #1095c1; border-bottom: 2px solid #1095c1; margin-bottom: -2px; }
         
+        .countdown { font-size: 0.8em; background-color: #ffeaa7; padding: 3px 8px; border-radius: 5px; color: #d35400; display: inline-block; margin-top: 5px; font-weight: bold;}
         .locked-msg-container { margin-top: 5px; padding: 5px 10px; background: #fadbd8; border-radius: 5px; border: 1px solid #f5b7b1; display: flex; justify-content: center; align-items: center; font-size: 0.8em; }
         .locked-msg { color: #c0392b; font-weight: bold; margin: 0;}
         .finished-score { background-color: #d4edda; color: #155724; padding: 4px 10px; border-radius: 5px; font-weight: bold; font-size: 1.1em; margin: 0; border: 1px solid #c3e6cb;}
@@ -30,7 +32,6 @@
         .urgent-alert { background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%); color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .urgent-match-badge { display: inline-block; background-color: #fff; padding: 4px 12px; border-radius: 20px; margin-left: 8px; margin-top: 8px; border: 1px solid #f9ca24; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #2c3e50; }
         
-        /* کوچکتر کردن برچسب‌های نتایج پرتکرار */
         .top-pred-badge { display: inline-block; background: #eef2f5; color: #2c3e50; border: 1px solid #dcdde1; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; width: 100%; text-align: right; box-sizing: border-box;}
         .success-checkmark { color: #20c997; font-weight: bold; font-size: 0.9em; margin-left: 5px; animation: fadeIn 0.3s ease-in-out; }
         
@@ -60,13 +61,16 @@
                 <div class="tab" :class="{ 'active': authMode === 'login' }" @click="authMode = 'login'">ورود</div>
                 <div class="tab" :class="{ 'active': authMode === 'register' }" @click="authMode = 'register'">ثبت‌نام</div>
             </div>
+            
             <div x-show="authMode === 'login'">
-                <input type="text" placeholder="نام کاربری" x-model="loginUsername" style="margin-bottom: 10px;">
+                <input type="text" placeholder="یوزرنیم (نام کاربری)" x-model="loginUsername" style="margin-bottom: 10px;">
                 <input type="password" placeholder="رمز عبور" x-model="loginPassword" style="margin-bottom: 15px;">
                 <button @click="login()" style="margin-bottom: 0;">ورود</button>
             </div>
+            
             <div x-show="authMode === 'register'">
-                <input type="text" placeholder="نام کاربری دلخواه" x-model="regUsername" style="margin-bottom: 10px;">
+                <input type="text" placeholder="نام واقعی (جهت اطلاع مدیریت)" x-model="regName" style="margin-bottom: 10px;">
+                <input type="text" placeholder="یوزرنیم دلخواه (نمایش در جدول)" x-model="regUsername" style="margin-bottom: 10px;">
                 <input type="password" placeholder="رمز عبور" x-model="regPassword" style="margin-bottom: 10px;">
                 <input type="password" placeholder="تکرار رمز عبور" x-model="regConfirm" style="margin-bottom: 15px;">
                 <button @click="register()" style="margin-bottom: 0;">ثبت‌نام</button>
@@ -79,7 +83,7 @@
                 
                 <div style="flex: 1; min-width: 300px; background-color: #eaf4f4; border-radius: 8px; padding: 0.8rem 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong style="font-size: 1em;">خوش آمدید، <span x-text="currentUser.name" style="color: #1095c1;"></span>!</strong>
+                        <strong style="font-size: 1em;">خوش آمدید، <span x-text="currentUser.username" style="color: #1095c1;"></span>!</strong>
                         <a href="#" @click.prevent="logout()" style="color: white; background-color: #e74c3c; padding: 4px 12px; border-radius: 5px; text-decoration: none; font-weight:bold; font-size: 0.85em;">خروج</a>
                     </div>
                     
@@ -108,7 +112,6 @@
 
                 <div x-show="urgentMatches.length > 0" class="urgent-alert" style="flex: 1; min-width: 300px; margin-bottom: 0; padding: 12px; display: none;">
                     <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1em;">⚠️ یادآوری مهم: فرصت رو به پایان!</h4>
-                    <p style="margin: 0; font-size: 0.85em;">زمان پیش‌بینی مسابقات زیر کمتر از ۲۴ ساعت دیگر بسته خواهد شد:</p>
                     <div style="margin-top: 5px;">
                         <template x-for="um in urgentMatches" :key="um.id">
                             <span class="urgent-match-badge" x-text="um.home_team + ' ⚡ ' + um.away_team"></span>
@@ -119,15 +122,17 @@
             </div>
 
             <div class="grid" style="grid-template-columns: 4fr 5fr; gap: 15px;">
+                
                 <div>
                     <article style="padding: 0.8rem;">
                         <h3 style="color: #2980b9; margin-bottom: 10px; font-size: 1.15em;">بازی‌ها و پیش‌بینی (آینده)</h3>
                         <div dir="rtl">
                             <template x-for="match in upcomingMatches" :key="match.id">
                                 <div>
+                                    
                                     <div x-show="match.home_team.includes('ایران') && match.away_team.includes('نیوزلند')"
-                                         style="background: linear-gradient(135deg, #1095c1 0%, #2980b9 100%); color: white; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-weight: bold; font-size: 1.05em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #bce2ef;">
-                                        🏆 شروع رسمی مسابقات پیش‌بینی دوستانه 🏆
+                                         style="background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); color: white; text-align: center; padding: 6px 12px; border-radius: 6px; margin-bottom: 12px; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #f5b041;">
+                                        🚀 شروع رسمی مسابقات پیش‌بینی دوستانه 🚀
                                     </div>
 
                                     <div class="match-card" :class="{'locked': match.isLocked, 'predicted': match.hasPredicted}">
@@ -177,9 +182,11 @@
                                                 <div x-show="match.isLocked" class="locked-msg-container" style="width: 100%; justify-content: center; margin-top: 0;">
                                                     <span class="locked-msg">🔒 پایان زمان پیش‌بینی</span>
                                                 </div>
+                                                
                                                 <div x-show="match.isLocked && match.hasPredicted" style="margin-top: 5px; font-size: 0.8em; color: #27ae60; font-weight: bold; text-align: center;">
                                                     نهایی شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
                                                 </div>
+                                                
                                                 <div x-show="match.isLocked && !match.hasPredicted" style="margin-top: 5px; font-size: 0.8em; color: #e74c3c; font-weight: bold; text-align: center;">
                                                     ثبت نکرده‌اید!
                                                 </div>
@@ -216,7 +223,7 @@
                                                 <span x-show="user.trend === 'up'" class="rank-up" title="صعود رتبه">▲</span>
                                                 <span x-show="user.trend === 'down'" class="rank-down" title="سقوط رتبه">▼</span>
                                                 <span x-show="user.trend === 'stable'" class="rank-stable" title="بدون تغییر">-</span>
-                                                <strong x-text="user.name"></strong>
+                                                <strong x-text="user.username"></strong>
                                             </td>
                                             <td><strong x-text="user.prize > 0 ? user.prize.toLocaleString('fa-IR') : '۰'" style="color: #2980b9;"></strong></td>
                                             <td><strong x-text="user.score" style="color: #27ae60; font-size: 1.1em;"></strong></td>
@@ -295,151 +302,150 @@
     <script>
         function footballApp() {
             return {
-                isLoggedIn: false, authMode: 'login', currentUser: { id: null, name: "" },
-                loginUsername: "", loginPassword: "", regUsername: "", regPassword: "", regConfirm: "",
-                matches: [], leaderboard: [], urgentMatches: [], timerInterval: null,
-                allPredictions: {}, openPredictionMatchId: null, timeOffset: 0,
+                isLoggedIn: false, 
+                authMode: 'login', 
+                currentUser: { id: null, username: "" },
+                loginUsername: "", 
+                loginPassword: "", 
+                regName: "", 
+                regUsername: "", 
+                regPassword: "", 
+                regConfirm: "",
+                matches: [], 
+                leaderboard: [], 
+                urgentMatches: [], 
+                timerInterval: null, 
+                allPredictions: {}, 
+                openPredictionMatchId: null, 
+                timeOffset: 0,
                 
-                get upcomingMatches() { return this.matches.filter(m => m.status !== 'finished'); },
-                get finishedMatches() { return this.matches.filter(m => m.status === 'finished').sort((a, b) => b.timestamp - a.timestamp); },
+                get upcomingMatches() { 
+                    return this.matches.filter(m => m.status !== 'finished'); 
+                },
+                get finishedMatches() { 
+                    return this.matches.filter(m => m.status === 'finished').sort((a, b) => b.timestamp - a.timestamp); 
+                },
 
                 initData() {
                     const savedUser = localStorage.getItem('footballUser');
-                    if (savedUser) {
-                        this.currentUser = JSON.parse(savedUser);
-                        this.isLoggedIn = true;
-                        if (this.currentUser.is_admin) { window.location.href = '/admin'; return; }
+                    if (savedUser) { 
+                        this.currentUser = JSON.parse(savedUser); 
+                        this.isLoggedIn = true; 
+                        if (this.currentUser.is_admin) { window.location.href = '/admin'; return; } 
                     }
                     if (!this.isLoggedIn) return;
 
                     Promise.all([
-                        fetch('/matches/list').then(r => {
-                            const serverDate = r.headers.get('Date');
-                            if(serverDate) this.timeOffset = new Date(serverDate).getTime() - Date.now();
-                            return r.json();
-                        }),
+                        fetch('/matches/list').then(r => { 
+                            const sd = r.headers.get('Date'); 
+                            if(sd) this.timeOffset = new Date(sd).getTime() - Date.now(); 
+                            return r.json(); 
+                        }), 
                         fetch(`/predictions/user/${this.currentUser.id}`).then(r => r.json())
                     ]).then(([matchesData, userPredsData]) => {
-                        const userPredsMap = {};
-                        userPredsData.forEach(p => {
-                            userPredsMap[p.match_id] = { home: p.predicted_home_goals, away: p.predicted_away_goals };
+                        const userPredsMap = {}; 
+                        userPredsData.forEach(p => { 
+                            userPredsMap[p.match_id] = { home: p.predicted_home_goals, away: p.predicted_away_goals }; 
                         });
-
-                        this.matches = matchesData.map(m => {
-                            const savedPred = userPredsMap[m.id];
-                            return {
+                        
+                        this.matches = matchesData.map(m => { 
+                            const savedPred = userPredsMap[m.id]; 
+                            return { 
                                 ...m, 
-                                predHome: savedPred ? savedPred.home : 0,
-                                predAway: savedPred ? savedPred.away : 0,
+                                predHome: savedPred ? savedPred.home : 0, 
+                                predAway: savedPred ? savedPred.away : 0, 
                                 savedPredHome: savedPred ? savedPred.home : null, 
                                 savedPredAway: savedPred ? savedPred.away : null, 
-                                hasPredicted: !!savedPred,
+                                hasPredicted: !!savedPred, 
                                 isLocked: false, 
-                                countdownText: "",
-                                successMsg: false
-                            };
+                                countdownText: "", 
+                                successMsg: false 
+                            }; 
                         });
                         this.startCountdown();
                     });
-                    
+
                     fetch('/leaderboard/').then(r => r.json()).then(data => this.leaderboard = data);
                     fetch('/predictions/all').then(r => r.json()).then(data => this.allPredictions = data);
                 },
 
                 getTop3Predictions(match) {
-                    const preds = this.allPredictions[match.id];
+                    const preds = this.allPredictions[match.id]; 
                     if (!preds || preds.length === 0) return [];
-
-                    const counts = {};
-                    preds.forEach(p => {
-                        let winText = "";
-                        if (p.home > p.away) winText = `برد ${match.home_team}`;
-                        else if (p.away > p.home) winText = `برد ${match.away_team}`;
-                        else winText = `مساوی`;
-                        const resultKey = `${p.home}-${p.away} (${winText})`;
-                        counts[resultKey] = (counts[resultKey] || 0) + 1;
+                    const counts = {}; 
+                    preds.forEach(p => { 
+                        let winText = p.home > p.away ? `برد ${match.home_team}` : (p.away > p.home ? `برد ${match.away_team}` : "مساوی"); 
+                        const rk = `${p.home}-${p.away} (${winText})`; 
+                        counts[rk] = (counts[rk] || 0) + 1; 
                     });
                     return Object.entries(counts).map(([result, count]) => ({ result, count })).sort((a, b) => b.count - a.count).slice(0, 3);
                 },
 
-                // تابع جدید برای مرتب‌سازی هوشمند پیش‌بینی‌ها از دقیق‌ترین تا ضعیف‌ترین
                 getSortedPredictions(match) {
-                    const preds = this.allPredictions[match.id];
+                    const preds = this.allPredictions[match.id]; 
                     if (!preds || preds.length === 0) return [];
-
-                    const actualHome = match.actual_home_goals;
-                    const actualAway = match.actual_away_goals;
-                    const actualDiff = actualHome - actualAway;
-
-                    let sorted = [...preds].map(p => {
-                        let pts = 0;
-                        const pDiff = p.home - p.away;
-                        if (p.home === actualHome && p.away === actualAway) pts = 3;
-                        else if (pDiff === actualDiff) pts = 2;
-                        else if ((actualDiff > 0 && pDiff > 0) || (actualDiff < 0 && pDiff < 0)) pts = 1;
-                        else pts = 0;
-                        return { ...p, pts };
+                    const ah = match.actual_home_goals, aa = match.actual_away_goals, ad = ah - aa;
+                    
+                    let sorted = [...preds].map(p => { 
+                        let pts = (p.home === ah && p.away === aa) ? 3 : ((p.home - p.away === ad) ? 2 : (((ad > 0 && p.home > p.away) || (ad < 0 && p.home < p.away)) ? 1 : 0)); 
+                        return { ...p, pts }; 
                     });
-
                     return sorted.sort((a, b) => b.pts - a.pts);
                 },
 
-                getPredictionText(pred, match) {
-                    let text = `${pred.home} - ${pred.away}`;
-                    if (pred.home > pred.away) text += ` (برد ${match.home_team})`;
-                    else if (pred.away > pred.home) text += ` (برد ${match.away_team})`;
-                    else text += ` (مساوی)`;
-                    return text;
+                getPredictionText(pred, match) { 
+                    return `${pred.home} - ${pred.away} (${pred.home > pred.away ? 'برد ' + match.home_team : (pred.away > pred.home ? 'برد ' + match.away_team : 'مساوی')})`; 
                 },
 
                 startCountdown() {
                     if (this.timerInterval) clearInterval(this.timerInterval);
                     this.timerInterval = setInterval(() => {
-                        const syncedTime = Date.now() + this.timeOffset;
-                        const nowTS = Math.floor(syncedTime / 1000);
-                        
-                        this.matches.forEach(m => {
-                            if (m.status === 'finished') { m.isLocked = true; }
-                            else if (m.timestamp && m.status === 'upcoming') {
-                                let diff = m.timestamp - nowTS;
-                                let lockDiff = diff - 900; 
-                                if (lockDiff <= 0) { m.isLocked = true; m.countdownText = ""; }
-                                else {
-                                    m.isLocked = false;
-                                    let d = Math.floor(lockDiff / 86400), h = Math.floor((lockDiff % 86400) / 3600);
-                                    let min = Math.floor((lockDiff % 3600) / 60), sec = lockDiff % 60;
-                                    m.countdownText = `${d} روز و ${h}:${min}:${sec}`;
-                                }
-                            } else { m.isLocked = true; }
+                        const nowTS = Math.floor((Date.now() + this.timeOffset) / 1000);
+                        this.matches.forEach(m => { 
+                            if (m.status === 'finished') { 
+                                m.isLocked = true; 
+                            } else if (m.timestamp && m.status === 'upcoming') { 
+                                let ld = m.timestamp - nowTS - 900; 
+                                if (ld <= 0) { 
+                                    m.isLocked = true; m.countdownText = ""; 
+                                } else { 
+                                    m.isLocked = false; 
+                                    let d = Math.floor(ld / 86400), h = Math.floor((ld % 86400) / 3600), min = Math.floor((ld % 3600) / 60), sec = ld % 60; 
+                                    m.countdownText = `${d} روز و ${h}:${min}:${sec}`; 
+                                } 
+                            } 
                         });
                         this.urgentMatches = this.matches.filter(m => m.status === 'upcoming' && !m.isLocked && m.timestamp && ((m.timestamp - nowTS) <= 86400));
                     }, 1000);
                 },
 
                 login() {
-                    fetch(`/login/?name=${this.loginUsername}&password=${this.loginPassword}`, { method: 'POST' })
+                    fetch(`/login/?username=${this.loginUsername}&password=${this.loginPassword}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") {
-                            const uData = {id: d.user_id, name: d.name, is_admin: d.is_admin || false};
-                            localStorage.setItem('footballUser', JSON.stringify(uData));
-                            if(uData.is_admin) { window.location.href = '/admin'; }
-                            else { this.currentUser = uData; this.isLoggedIn = true; this.initData(); }
-                        } else alert("خطا: اطلاعات ورود اشتباه است");
+                        if(d.status === "success") { 
+                            localStorage.setItem('footballUser', JSON.stringify(d)); 
+                            if(d.is_admin) { window.location.href = '/admin'; } else { this.currentUser = d; this.isLoggedIn = true; this.initData(); } 
+                        } else alert("اطلاعات اشتباه است");
                     });
                 },
+
                 register() {
                     if(this.regPassword !== this.regConfirm) return alert("رمز عبور تطابق ندارد!");
-                    fetch(`/users/?name=${this.regUsername}&password=${this.regPassword}`, { method: 'POST' })
+                    fetch(`/users/?name=${this.regName}&username=${this.regUsername}&password=${this.regPassword}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {
-                        if(d.status === "success") {
-                            const uData = {id: d.user_id, name: d.name, is_admin: false};
-                            localStorage.setItem('footballUser', JSON.stringify(uData));
-                            this.currentUser = uData; this.isLoggedIn = true; this.initData();
-                        } else alert("خطا در ثبت‌نام");
+                        if(d.status === "success") { 
+                            localStorage.setItem('footballUser', JSON.stringify(d)); 
+                            this.currentUser = d; this.isLoggedIn = true; this.initData(); 
+                        } else alert("یوزرنیم تکراری است یا خطایی رخ داده");
                     });
                 },
-                logout() { this.isLoggedIn = false; localStorage.removeItem('footballUser'); if(this.timerInterval) clearInterval(this.timerInterval); },
-                
+
+                logout() { 
+                    this.isLoggedIn = false; 
+                    localStorage.removeItem('footballUser'); 
+                    if(this.timerInterval) clearInterval(this.timerInterval); 
+                },
+
                 submitPrediction(m) {
                     if (m.isLocked) return alert("زمان ثبت پیش‌بینی تمام شده است!");
                     fetch(`/predictions/?user_id=${this.currentUser.id}&match_id=${m.id}&home_goals=${m.predHome}&away_goals=${m.predAway}`, { method: 'POST' })
@@ -460,4 +466,3 @@
     </script>
 </body>
 </html>
-

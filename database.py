@@ -2,13 +2,10 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# --- تغییرات اضافه شده برای اتصال به دیسک لیارا ---
 if not os.path.exists("data"):
     os.makedirs("data")
 
-# مسیر دیتابیس به داخل پوشه data تغییر یافت
 SQLALCHEMY_DATABASE_URL = "sqlite:///./data/football.db"
-# -------------------------------------------------
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -17,11 +14,12 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String)
+    username = Column(String, unique=True, index=True) # ستون جدید یوزرنیم نمایش
     password = Column(String)
     score = Column(Integer, default=0)
     last_login = Column(String, default="هرگز")
-    previous_rank = Column(Integer, default=1) # ستون جدید برای ذخیره رتبه قبلی کاربر
+    previous_rank = Column(Integer, default=1)
 
 class Match(Base):
     __tablename__ = "matches"
@@ -45,7 +43,6 @@ class Prediction(Base):
     predicted_home_goals = Column(Integer)
     predicted_away_goals = Column(Integer)
 
-# جدول جدید برای ثبت فعالیت‌های سیستم (Audit Log)
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True, index=True)
@@ -56,7 +53,6 @@ class AuditLog(Base):
     user_agent = Column(String)
     timestamp = Column(String)
 
-# جدول تنظیمات سیستم (برای ذخیره پایداری مبلغ جایزه)
 class SystemSetting(Base):
     __tablename__ = "system_settings"
     id = Column(Integer, primary_key=True, index=True)

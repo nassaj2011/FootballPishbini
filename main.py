@@ -17,28 +17,22 @@ from datetime import datetime
 import uvicorn
 import requests
 
-# --- تنظیمات اتصال به پیام‌رسان بله ---
 BALE_TOKEN = "توکن_ربات_شما_که_از_بات‌فادر_گرفتید"
 BALE_CHAT_ID = "آیدی_کانال_شما"
 
 def send_bale_notification(message_text: str):
     url = f"https://tapi.bale.ai/bot{BALE_TOKEN}/sendMessage"
-    try:
-        requests.post(url, json={"chat_id": BALE_CHAT_ID, "text": message_text}, timeout=10)
-    except Exception:
-        pass
+    try: requests.post(url, json={"chat_id": BALE_CHAT_ID, "text": message_text}, timeout=10)
+    except Exception: pass
 
-# --- سیستم بک‌آپ‌گیری ---
 BACKUP_DIR = "data/backups"
-if not os.path.exists(BACKUP_DIR):
-    os.makedirs(BACKUP_DIR)
+if not os.path.exists(BACKUP_DIR): os.makedirs(BACKUP_DIR)
 
 def backup_database():
     try:
         now_str = jdatetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
         shutil.copy2("data/football.db", f"{BACKUP_DIR}/football_backup_{now_str}.db")
-    except Exception:
-        pass
+    except Exception: pass
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
@@ -49,6 +43,11 @@ async def lifespan(app: FastAPI):
     db.Base.metadata.create_all(bind=db.engine)
     with db.engine.begin() as conn:
         try: conn.execute(text("ALTER TABLE users ADD COLUMN previous_rank INTEGER DEFAULT 1;"))
+        except Exception: pass
+        # تزریق امن ستون یوزرنیم و مقداردهی پیش‌فرض کاربران قدیمی با نامشان
+        try: 
+            conn.execute(text("ALTER TABLE users ADD COLUMN username TEXT;"))
+            conn.execute(text("UPDATE users SET username = name WHERE username IS NULL;"))
         except Exception: pass
     yield
 
@@ -84,19 +83,15 @@ class BulkFinishRequest(BaseModel): results: List[MatchResultItem]
 
 def calculate_leaderboard_data(db_session):
     users = db_session.query(db.User).all()
-    
-    # فیلتر هوشمندانه فاز اول و دوم
     arabia_match = db_session.query(db.Match).filter(db.Match.home_team.contains('عربستان'), db.Match.away_team.contains('اروگوئه')).first()
     is_phase_1_finished = arabia_match and arabia_match.status == "finished"
     
     threshold_ts = 0
     if is_phase_1_finished:
         iran_nz = db_session.query(db.Match).filter(db.Match.home_team.contains('ایران'), db.Match.away_team.contains('نیوزلند')).first()
-        if iran_nz and iran_nz.timestamp:
-            threshold_ts = iran_nz.timestamp
+        if iran_nz and iran_nz.timestamp: threshold_ts = iran_nz.timestamp
 
     finished_matches = db_session.query(db.Match).filter(db.Match.status == "finished", db.Match.timestamp >= threshold_ts).all()
-    
     prize_setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
     total_prize = float(prize_setting.value) if prize_setting else 0.0
 
@@ -116,13 +111,14 @@ def calculate_leaderboard_data(db_session):
                     stats["diff"] += 1; stats["score"] += 2
                 elif (a_diff > 0 and p_diff > 0) or (a_diff < 0 and p_diff < 0): 
                     stats["winner"] += 1; stats["score"] += 1
-                else: 
-                    stats["wrong"] += 1
+                else: stats["wrong"] += 1
         
-        # بروزرسانی امتیاز نهایی در پایگاه داده کاربر
         u.score = stats["score"]
         prev_rank = getattr(u, 'previous_rank', 1) or 1
-        leaderboard_data.append({"id": u.id, "name": u.name, "score": stats["score"], "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats})
+        leaderboard_data.append({
+            "id": u.id, "name": u.name, "username": u.username, "score": stats["score"], 
+            "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats
+        })
        
     db_session.commit()
     leaderboard_data.sort(key=lambda x: x["score"], reverse=True)
@@ -193,13 +189,12 @@ def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
     return {"status": "success"}
 
 @app.get("/leaderboard/")
-def get_leaderboard(db_session: Session = Depends(get_db)):
-    return calculate_leaderboard_data(db_session)
+def get_leaderboard(db_session: Session = Depends(get_db)): return calculate_leaderboard_data(db_session)
 
 @app.get("/predictions/all")
 def get_all_predictions(db_session: Session = Depends(get_db)):
     preds = db_session.query(db.Prediction).all()
-    users = {u.id: u.name for u in db_session.query(db.User).all()}
+    users = {u.id: u.username for u in db_session.query(db.User).all()} # نمایش براساس یوزرنیم
     result = {}
     for p in preds:
         if p.match_id not in result: result[p.match_id] = []
@@ -211,29 +206,38 @@ def get_user_predictions(user_id: int, db_session: Session = Depends(get_db)):
     return db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id).all()
 
 @app.post("/users/")
-def create_user(request: Request, name: str, password: str, db_session: Session = Depends(get_db)):
-    if db_session.query(db.User).filter(db.User.name == name).first(): raise HTTPException(status_code=400, detail="این نام کاربری قبلاً ثبت شده است")
+def create_user(request: Request, name: str, username: str, password: str, db_session: Session = Depends(get_db)):
+    if db_session.query(db.User).filter(db.User.username == username).first(): 
+        raise HTTPException(status_code=400, detail="این یوزرنیم قبلاً ثبت شده است")
     now_str = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M")
-    new_user = db.User(name=name, password=password, last_login=now_str)
+    new_user = db.User(name=name, username=username, password=password, last_login=now_str)
     db_session.add(new_user)
     db_session.commit()
-    log_action(db_session, request, name, "ثبت‌نام", "کاربر جدید ثبت‌نام کرد")
-    return {"status": "success", "user_id": new_user.id, "name": new_user.name}
+    log_action(db_session, request, username, "ثبت‌نام", "کاربر جدید ثبت‌نام کرد")
+    return {"status": "success", "user_id": new_user.id, "name": new_user.name, "username": new_user.username}
 
 @app.post("/login/")
-def login_user(request: Request, name: str, password: str, db_session: Session = Depends(get_db)):
-    if name == "admin" and password == "manhastam":
+def login_user(request: Request, username: str, password: str, db_session: Session = Depends(get_db)):
+    if username == "admin" and password == "manhastam":
         log_action(db_session, request, "مدیریت", "ورود ادمین", "ورود به پنل مدیریت")
-        return {"status": "success", "user_id": 0, "name": "مدیریت", "is_admin": True}
+        return {"status": "success", "user_id": 0, "name": "مدیریت", "username": "admin", "is_admin": True}
        
-    user = db_session.query(db.User).filter(db.User.name == name).first()
-    if not user or user.password != password: raise HTTPException(status_code=400, detail="نام کاربری یا رمز عبور اشتباه است")
+    user = db_session.query(db.User).filter(db.User.username == username).first()
+    if not user or user.password != password: raise HTTPException(status_code=400, detail="یوزرنیم یا رمز عبور اشتباه است")
    
     user.last_login = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M")
     db_session.commit()
-    log_action(db_session, request, user.name, "ورود کاربر", "ورود موفق به سیستم")
-   
-    return {"status": "success", "user_id": user.id, "name": user.name, "is_admin": False}
+    log_action(db_session, request, user.username, "ورود کاربر", "ورود موفق به سیستم")
+    return {"status": "success", "user_id": user.id, "name": user.name, "username": user.username, "is_admin": False}
+
+@app.post("/matches/edit/{match_id}")
+def edit_match_names(match_id: int, home: str, away: str, db_session: Session = Depends(get_db)):
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if match:
+        match.home_team = home; match.away_team = away
+        db_session.commit()
+        return {"status": "success"}
+    return {"status": "error"}
 
 @app.post("/matches/")
 def create_match(home_team: str, away_team: str, match_date: str, match_time: str, stadium: str="نامشخص", group_name: str="نامشخص", db_session: Session = Depends(get_db)):
@@ -262,16 +266,6 @@ def upload_matches(file: UploadFile = File(...), db_session: Session = Depends(g
         db_session.commit()
         return {"status": "success", "message": f"{added} مسابقه اضافه شد"}
     except Exception as e: raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/matches/edit/{match_id}")
-def edit_match_names(match_id: int, home: str, away: str, db_session: Session = Depends(get_db)):
-    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
-    if match:
-        match.home_team = home
-        match.away_team = away
-        db_session.commit()
-        return {"status": "success"}
-    return {"status": "error"}
 
 @app.delete("/matches/{match_id}")
 def delete_match(match_id: int, db_session: Session = Depends(get_db)):
@@ -307,7 +301,7 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
         action = "ثبت پیش‌بینی جدید"
         
     db_session.commit()
-    log_action(db_session, request, user.name if user else "Unknown", action, f"بازی: {match.home_team} و {match.away_team} | {home_goals} - {away_goals}")
+    log_action(db_session, request, user.username if user else "Unknown", action, f"بازی: {match.home_team} و {match.away_team} | {home_goals} - {away_goals}")
     return {"status": "success"}
 
 @app.post("/matches/bulk-finish")
@@ -322,41 +316,28 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
 
     trigger_excel_backup = False
     bale_report = "🏁 **نتایج جدید مسابقات ثبت شد!**\n\n"
-    
     for item in req.results:
         match = db_session.query(db.Match).filter(db.Match.id == item.match_id).first()
         if match:
-            match.actual_home_goals = item.actual_home
-            match.actual_away_goals = item.actual_away
-            match.status = "finished"
+            match.actual_home_goals = item.actual_home; match.actual_away_goals = item.actual_away; match.status = "finished"
             bale_report += f"⚽ {match.home_team} {item.actual_home} - {item.actual_away} {match.away_team}\n"
-            if "عربستان" in match.home_team and "اروگوئه" in match.away_team:
-                trigger_excel_backup = True
+            if "عربستان" in match.home_team and "اروگوئه" in match.away_team: trigger_excel_backup = True
 
-    # خروجی گرفتن از فاز اول به اکسل پیش از ریست
     if trigger_excel_backup:
         try:
             lb_data = calculate_leaderboard_data(db_session)
             wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Phase 1 Final"
-            ws.append(["رتبه", "نام", "امتیاز", "دقیق", "تفاضل", "برنده", "غلط"])
-            for r in lb_data:
-                ws.append([r['rank'], r['name'], r['score'], r['exact'], r['diff'], r['winner'], r['wrong']])
+            ws = wb.active; ws.title = "Phase 1 Final"
+            ws.append(["رتبه", "یوزرنیم", "نام واقعی", "امتیاز", "دقیق", "تفاضل", "برنده", "غلط"])
+            for r in lb_data: ws.append([r['rank'], r['username'], r['name'], r['score'], r['exact'], r['diff'], r['winner'], r['wrong']])
             wb.save("data/backups/leaderboard_phase1_final.xlsx")
-        except Exception:
-            pass
+        except Exception: pass
             
     db_session.commit()
     calculate_leaderboard_data(db_session)
-
     updated_users = db_session.query(db.User).order_by(db.User.score.desc()).all()
-    if updated_users:
-        bale_report += f"\n🏆 صدرنشین فعلی جدول: {updated_users[0].name} ({updated_users[0].score} امتیاز)\n"
-    
+    if updated_users: bale_report += f"\n🏆 صدرنشین فعلی جدول: {updated_users[0].username} ({updated_users[0].score} امتیاز)\n"
     send_bale_notification(bale_report)
     return {"status": "success"}
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
-
+if __name__ == "__main__": uvicorn.run("main:app", host="0.0.0.0", port=8000)

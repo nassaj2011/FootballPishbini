@@ -556,6 +556,8 @@
                             };
                         });
                         this.startCountdown();
+                        this.startLiveUpdates();
+
                     }).catch(err => console.error("Error loading predictions: ", err));
 
                     fetch('/leaderboard/').then(r => r.json()).then(data => this.leaderboard = data);
@@ -611,7 +613,29 @@
                         this.urgentMatches = this.matches.filter(m => m.status === 'upcoming' && !m.isLocked && m.timestamp && ((m.timestamp - nowTS) <= 86400));
                     }, 1000);
                 },
-
+                
+                startLiveUpdates() {
+                    // هر 30 ثانیه دیتابیس لوکال را برای تغییرات جدید چک می‌کند
+                    setInterval(() => {
+                        // آپدیت نتایج بازی‌ها
+                        fetch('/matches/list')
+                            .then(r => r.json())
+                            .then(newMatches => {
+                                newMatches.forEach(newM => {
+                                    let oldM = this.matches.find(m => m.id === newM.id);
+                                    if (oldM) {
+                                        oldM.actual_home_goals = newM.actual_home_goals;
+                                        oldM.actual_away_goals = newM.actual_away_goals;
+                                        oldM.status = newM.status;
+                                        oldM.isLocked = newM.isLocked;
+                                    }
+                                });
+                            });
+                        // آپدیت جدول رده‌بندی زنده
+                        fetch('/leaderboard/').then(r => r.json()).then(data => this.leaderboard = data);
+                    }, 30000);
+                },
+                
                 login() {
                     fetch(`/login/?username=${this.loginUsername}&password=${this.loginPassword}`, { method: 'POST' })
                     .then(r => r.json()).then(d => {

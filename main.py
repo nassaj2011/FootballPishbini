@@ -766,6 +766,12 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                     send_bale_notification(result_msg, target_chat_id=chat_id)
                 else:
                     send_bale_notification("❌ فرمت اشتباه است. لطفاً تاریخ را ۸ رقمی و بدون خط تیره وارد کنید:\nمثال: `/ap 20260616`", target_chat_id=chat_id)
+            
+            elif text == "/live":
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                send_bale_notification("⚡ در حال آپدیت لحظه‌ای نتایج بازی‌های امروز...", target_chat_id=chat_id)
+                result_msg = fetch_and_update_from_api(db_session, today_str)
+                send_bale_notification(result_msg, target_chat_id=chat_id)
 
             elif text == "/table" or text == "/leaderboard":
                 lb_data = calculate_leaderboard_data(db_session)
@@ -850,5 +856,24 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
     except Exception: 
         return {"status": "error"}
 
-if __name__ == "__main__": 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+def smart_auto_update():
+    """تابعی که توسط زمان‌بند در پس‌زمینه اجرا می‌شود"""
+    db_session = next(db.get_db())
+    try:
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        fetch_and_update_from_api(db_session, today_str)
+    except Exception as e:
+        print(f"Auto-sync failed: {e}")
+    finally:
+        db_session.close()
+
+# 🌟 راه‌اندازی زمان‌بند هوشمند 🌟
+scheduler = BackgroundScheduler()
+# بخش اول: اجرا در ساعت ۲۲ (فقط از دقیقه ۳۰ تا ۵۹، هر ۸ دقیقه یک‌بار)
+scheduler.add_job(smart_auto_update, 'cron', hour='22', minute='30-59/8')
+# بخش دوم: اجرا از ساعت ۲۳:۰۰ تا ۰۶:۵۹ صبح (هر ۸ دقیقه یک‌بار در کل ساعت)
+scheduler.add_job(smart_auto_update, 'cron', hour='23,0-6', minute='*/8')
+scheduler.start()
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

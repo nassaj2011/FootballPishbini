@@ -181,17 +181,17 @@ class BulkFinishRequest(BaseModel):
 def calculate_leaderboard_data(db_session):
     users = db_session.query(db.User).all()
     
-    # 🌟 اصلاح منطق ریست جدول رده‌بندی
-    threshold_ts = 0
-    iran_nz = db_session.query(db.Match).filter(
-        db.Match.home_team.contains('ایران'), 
-        db.Match.away_team.contains('نیوزلند')
-    ).first()
-    
-    # اگر بازی ایران نیوزلند وجود داشته باشد، مبدا محاسبات از زمان این بازی خواهد بود
-    if iran_nz and iran_nz.timestamp: 
-        threshold_ts = iran_nz.timestamp
+    # 🌟 تنظیم مبدا جدید محاسبات: ۲۶ خرداد ساعت ۰۴:۰۰ صبح به وقت تهران
+    try:
+        current_year = jdatetime.datetime.now().year
+        # ماه ۳ (خرداد)، روز ۲۶، ساعت ۴، دقیقه ۰، ثانیه ۰
+        dt_jalali = jdatetime.datetime(current_year, 3, 26, 4, 0, 0)
+        tehran_tz = pytz.timezone("Asia/Tehran")
+        threshold_ts = tehran_tz.localize(dt_jalali.togregorian()).timestamp()
+    except Exception:
+        threshold_ts = 0 # در صورت بروز خطای پیش‌بینی نشده، کل بازی‌ها محاسبه شوند
 
+    # دریافت تمام بازی‌های تمام‌شده‌ای که زمان آن‌ها بعد از ۴ صبح ۲۶ خرداد است
     finished_matches = db_session.query(db.Match).filter(
         db.Match.status == "finished", 
         db.Match.timestamp >= threshold_ts

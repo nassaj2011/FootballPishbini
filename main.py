@@ -497,15 +497,23 @@ def login_user(request: Request, username: str, password: str, db_session: Sessi
     if username == "admin" and password == "manhastam":
         log_action(db_session, request, "مدیریت", "ورود ادمین", "ورود به سیستم")
         return {"status": "success", "user_id": 0, "name": "مدیریت", "username": "admin", "is_admin": True}
-        
+       
     user = db_session.query(db.User).filter(db.User.username == username).first()
-    if not user or user.password != password: 
+    if not user or user.password != password:
         raise HTTPException(status_code=400, detail="یوزرنیم یا رمز اشتباه است")
-        
+       
     user.last_login = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M")
     db_session.commit()
     log_action(db_session, request, user.username, "ورود", "موفق")
-    
+   
+    # --- ارسال هشدار ورود به پی‌وی ادمین ---
+    try:
+        admin_msg = f"🔔 ورود به سایت\n👤 کاربر: {user.username}\n⏰ زمان: {user.last_login}"
+        send_bale_notification(admin_msg, target_chat_id=ADMIN_BALE_ID)
+    except Exception as e:
+        print(f"Login notification error: {e}")
+    # ---------------------------------------
+   
     return {"status": "success", "user_id": user.id, "name": user.name, "username": user.username, "is_admin": False}
 
 @app.post("/users/edit/{target_user_id}")

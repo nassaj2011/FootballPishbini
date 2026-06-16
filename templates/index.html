@@ -163,6 +163,57 @@
                 width: 100% !important;
             }
         }
+        
+            /* اسکرول نرم برای کل سایت */
+            html {
+                scroll-behavior: smooth;
+            }
+
+            /* حالت پیش‌فرض دکمه‌های شناور (پنهان در دسکتاپ و موبایل افقی) */
+            .floating-glass-nav {
+                display: none;
+            }
+
+            /* 📱 نمایش فقط در عرض موبایل و حالت عمودی (Portrait) */
+            @media (max-width: 768px) and (orientation: portrait) {
+                .floating-glass-nav {
+                    display: flex;
+                    gap: 12px;
+                    position: fixed;
+                    bottom: 25px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 9999;
+        
+                    /* 🌟 جادوی شیشه‌ای (Glassmorphism) */
+                    background: rgba(255, 255, 255, 0.35);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    padding: 8px 12px;
+                    border-radius: 40px;
+                    border: 1px solid rgba(255, 255, 255, 0.6);
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.1), inset 0 2px 5px rgba(255,255,255,0.5);
+                }
+
+                .glass-btn {
+                    background: rgba(255, 255, 255, 0.9);
+                    color: #2c3e50;
+                    text-decoration: none;
+                    padding: 6px 14px;
+                    border-radius: 30px;
+                    font-size: 0.85em;
+                    font-weight: bold;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.06), inset 0 -2px 5px rgba(0,0,0,0.04);
+                    transition: transform 0.2s, box-shadow 0.2s;
+                    white-space: nowrap;
+                }
+
+                .glass-btn:active {
+                    transform: translateY(2px);
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 2px 5px rgba(0,0,0,0.1);
+                }
+            }
+
     </style>
 
     <script>
@@ -338,7 +389,7 @@
                 </div>
 
                 <div>
-                    <article style="margin-bottom: 20px; padding: 1rem; border-radius: 16px;">
+                    <article id="leaderboard-section" style="margin-bottom: 20px; padding: 1rem; border-radius: 16px;">
                         <h3 style="margin-bottom: 15px; font-size: 1.25em; border-bottom: 2px solid #eaf2f8; padding-bottom: 8px;">جدول رده‌بندی زنده لیگ 🏆</h3>
                         <div style="overflow-x: auto;">
                             <table class="striped leaderboard-table" style="margin: 0;">
@@ -371,7 +422,7 @@
                         </div>
                     </article>
 
-                    <article style="padding: 1rem; border-radius: 16px;">
+                    <article id="finished-matches-section" style="padding: 1rem; border-radius: 16px;">
                         <h3 style="color: #27ae60; margin-bottom: 15px; font-size: 1.25em; border-bottom: 2px solid #eef9f0; padding-bottom: 8px;">نتایج بازی‌های برگزار شده 🏁</h3>
                         <div dir="rtl">
                             <template x-for="match in finishedMatches" :key="match.id">
@@ -429,6 +480,11 @@
                 </div>
             </div>
         </div>
+
+        <div class="floating-glass-nav" x-show="isLoggedIn">
+            <a href="#leaderboard-section" class="glass-btn">🏆 جدول لایو</a> 
+            <a href="#finished-matches-section" class="glass-btn">🏁 نتایج بازی‌ها</a> 
+        </div> 
     </main>
 
     <script>

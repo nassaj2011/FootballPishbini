@@ -143,6 +143,26 @@
         .rules-content h5 { margin-bottom: 5px; color: #2980b9; font-size: 1.05em; font-weight: bold; }
         .rules-content ul { margin-bottom: 15px; padding-right: 20px; }
         .rules-content li { margin-bottom: 5px; }
+
+        /* 📱 کدهای جادویی واکنش‌گرا (مخصوص موبایل‌های عمودی) */
+        @media (max-width: 768px) {
+            /* ۱. ستون بازی‌های آینده و جدول رده‌بندی زیر هم قرار بگیرند */
+            .responsive-grid {
+                grid-template-columns: 1fr !important;
+            }
+    
+            /* ۲. داخل کارت بازی: باکس ثبت امتیاز بیاید بالا و نتایج پرتکرار برود پایین */
+            .responsive-card-flex {
+                flex-direction: column-reverse !important; 
+                align-items: center !important;
+                gap: 15px !important;
+            }
+    
+            /* ۳. عرض این دو بخش ۱۰۰ درصدِ صفحه موبایل را پر کند */
+            .responsive-col {
+                width: 100% !important;
+            }
+        }
     </style>
 
     <script>

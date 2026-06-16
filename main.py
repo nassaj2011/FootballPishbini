@@ -26,6 +26,73 @@ BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
 ADMIN_BALE_ID = "189389617"
 
+# --- تنظیمات API-Sports ---
+API_SPORTS_KEY = "91a19f0ef86a021c15fb02f28539fe86"
+
+
+# دیکشنری ترجمه نام تیم‌ها (برای تطبیق دیتابیس فارسی با نتایج انگلیسی)
+TEAM_NAME_MAPPING = {
+    "ایران": "Iran",
+    "ایران": "Iran", 
+    "نیوزیلند": "New Zealand", 
+    "فرانسه": "France", 
+    "سنگال": "Senegal", "عربستان": "Saudi Arabia", "اروگوئه": "Uruguay", "مکزیک": "Mexico", "کره جنوبی": "South Korea", "کانادا": "Canada", "قطر": "Qatar", "آمریکا": "USA", "هائیتی": "Haiti", "برزیل": "Brazil", "استرالیا": "Australia", "آلمان": "Germany", "هلند": "Netherlands", "ساحل عاج": "Ivory Coast", "سوئد": "Sweden", "اسپانیا": "Spain", "اسپانیای": "Spain", "بلژیک": "Belgium", "عراق": "Iraq", "آرژانتین": "Argentina", "اتریش": "Austria", "پرتغال": "Portugal", "انگلیس": "England", "غنا": "Ghana", "ازبکستان": "Uzbekistan", "جمهوری چک": "Czech Republic", "سوئیس": "Switzerland", "اسکاتلند": "Scotland", "ترکیه": "Turkey", "اکوادور": "Ecuador", "تونس": "Tunisia", "نروژ": "Norway", "اردن": "Jordan", "پاناما": "Panama", "کلمبیا": "Colombia", "آفریقای جنوبی": "South Africa", "بوسنی و هرزگوین": "Bosnia and Herzegovina", "مراکش": "Morocco", "پاراگوئه": "Paraguay", "کوراسائو": "Curacao", "ژاپن": "Japan", "مصر": "Egypt", "کیپ ورد": "Cape Verde", "الجزایر": "Algeria", "جمهوری کنگو": "Congo", "کرواسی": "Croatia" } 
+def fetch_and_update_from_api(db_session: Session, target_date_str: str):
+    """
+    دریافت نتایج از API و آپدیت خودکار دیتابیس
+    فرمت ورودی: YYYY-MM-DD
+    """
+    url = f"https://v3.football.api-sports.io/fixtures?date={target_date_str}"
+    headers = {'x-apisports-key': API_SPORTS_KEY}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        data = response.json()
+        
+        if not data.get('response'):
+            return "❌ هیچ دیتایی برای این تاریخ یافت نشد یا محدودیت API پر شده است."
+            
+        api_fixtures = data['response']
+        updated_count = 0
+        
+        pending_matches = db_session.query(db.Match).filter(db.Match.status == "upcoming").all()
+        
+        for match in pending_matches:
+            home_en = TEAM_NAME_MAPPING.get(match.home_team.strip())
+            away_en = TEAM_NAME_MAPPING.get(match.away_team.strip())
+            
+            if not home_en or not away_en:
+                continue 
+                
+            for api_match in api_fixtures:
+                api_home = api_match['teams']['home']['name']
+                api_away = api_match['teams']['away']['name']
+                
+                if api_home == home_en and api_away == away_en:
+                    status_short = api_match['fixture']['status']['short']
+                    
+                    if status_short in ['FT', 'PEN', 'AET']:
+                        match.actual_home_goals = api_match['goals']['home']
+                        match.actual_away_goals = api_match['goals']['away']
+                        match.status = "finished"
+                        updated_count += 1
+                        
+                        db_session.commit()
+                        calculate_leaderboard_data(db_session)
+                        
+                        try:
+                            msg_text = generate_bale_summary_message(db_session, match.id)
+                            if msg_text: 
+                                send_bale_notification(msg_text)
+                        except Exception as e:
+                            print(f"Bale API error: {e}")
+                    break 
+                    
+        return f"✅ سینک با موفقیت انجام شد. {updated_count} مسابقه ثبت و جدول آپدیت گردید."
+        
+    except Exception as e:
+        return f"❌ خطای ارتباط با سرور خارجی: {e}"
+
 # 🌟 تابع ارسال پیام (همراه با سیستم دیباگ و پردازش دکمه‌ها)
 def send_bale_notification(message_text: str, target_chat_id=None, reply_markup=None):
     chat = target_chat_id if target_chat_id else BALE_CHAT_ID
@@ -685,6 +752,20 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                     if match: 
                         msg += f"⚽️ {match.home_team} - {match.away_team} ⟵ ({p.predicted_home_goals} - {p.predicted_away_goals})\n"
                 send_bale_notification(msg if preds else "هنوز پیش‌بینی ثبت نکرده است.", target_chat_id=chat_id)
+
+            elif text.startswith("/ap "):
+                # الگو: /ap 20260616
+                parts = text.split(" ")
+                if len(parts) == 2 and len(parts[1]) == 8 and parts[1].isdigit():
+                    raw_date = parts[1]
+                    # تبدیل خودکار 20260616 به 2026-06-16
+                    target_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:]}"
+                    
+                    send_bale_notification(f"⏳ در حال ارتباط با سرور جهانی برای نتایج {target_date}...", target_chat_id=chat_id)
+                    result_msg = fetch_and_update_from_api(db_session, target_date)
+                    send_bale_notification(result_msg, target_chat_id=chat_id)
+                else:
+                    send_bale_notification("❌ فرمت اشتباه است. لطفاً تاریخ را ۸ رقمی و بدون خط تیره وارد کنید:\nمثال: `/ap 20260616`", target_chat_id=chat_id)
 
             elif text == "/table" or text == "/leaderboard":
                 lb_data = calculate_leaderboard_data(db_session)

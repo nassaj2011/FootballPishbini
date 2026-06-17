@@ -169,50 +169,196 @@
                 scroll-behavior: smooth;
             }
 
-            /* حالت پیش‌فرض دکمه‌های شناور (پنهان در دسکتاپ و موبایل افقی) */
-            .floating-glass-nav {
-                display: none;
-            }
 
-            /* 📱 نمایش فقط در عرض موبایل و حالت عمودی (Portrait) */
-            @media (max-width: 768px) and (orientation: portrait) {
-                .floating-glass-nav {
-                    display: flex;
-                    gap: 12px;
-                    position: fixed;
-                    bottom: 25px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    z-index: 9999;
-        
-                    /* 🌟 جادوی شیشه‌ای (Glassmorphism) */
-                    background: rgba(255, 255, 255, 0.35);
-                    backdrop-filter: blur(12px);
-                    -webkit-backdrop-filter: blur(12px);
-                    padding: 8px 12px;
-                    border-radius: 40px;
-                    border: 1px solid rgba(255, 255, 255, 0.6);
-                    box-shadow: 0 8px 25px rgba(0,0,0,0.1), inset 0 2px 5px rgba(255,255,255,0.5);
+            /* فشرده‌سازی جدول برای موبایل (عمودی و افقی) */
+            @media (max-width: 768px) {
+                #leaderboard-section table th, 
+                #leaderboard-section table td {
+                    padding: 5px 2px !important;
+                    font-size: 0.75rem !important;
+                    white-space: nowrap; /* جلوگیری از شکستن خطوط */
                 }
-
-                .glass-btn {
-                    background: rgba(255, 255, 255, 0.9);
-                    color: #2c3e50;
-                    text-decoration: none;
-                    padding: 6px 14px;
-                    border-radius: 30px;
-                    font-size: 0.85em;
-                    font-weight: bold;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.06), inset 0 -2px 5px rgba(0,0,0,0.04);
-                    transition: transform 0.2s, box-shadow 0.2s;
-                    white-space: nowrap;
-                }
-
-                .glass-btn:active {
-                    transform: translateY(2px);
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 2px 5px rgba(0,0,0,0.1);
+                /* کلاسی برای مخفی کردن کلمات اضافه در موبایل */
+                .hide-mobile {
+                    display: none !important;
                 }
             }
+
+
+/* حالت پیش‌فرض منوی شناور (پنهان در دسکتاپ) */
+.floating-glass-nav {
+    display: none;
+}
+
+
+/* 📱 منوی شناور ۲ خطی در موبایل عمودی */
+@media (max-width: 768px) and (orientation: portrait) {
+    .floating-glass-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        width: 92%;
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        padding: 12px;
+        border-radius: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .glass-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .glass-btn {
+        background: rgba(255, 255, 255, 0.9);
+        color: #2c3e50;
+        text-decoration: none;
+        padding: 8px 10px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        flex-grow: 1;
+        white-space: nowrap;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+
+    .glass-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .glass-btn-circle {
+        flex-grow: 0;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2em;
+        animation: bounce 2s infinite;
+        cursor: pointer;
+        border: none;
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+}
+
+
+
+
+
+            /* فشرده‌سازی جدول برای موبایل (عمودی و افقی) */
+@media (max-width: 768px) {
+    #leaderboard-section table th, 
+    #leaderboard-section table td {
+        padding: 5px 2px !important;
+        font-size: 0.75rem !important;
+        white-space: nowrap; /* جلوگیری از شکستن خطوط */
+    }
+    /* کلاسی برای مخفی کردن کلمات اضافه در موبایل */
+    .hide-mobile {
+        display: none !important;
+    }
+}
+
+
+/* حالت پیش‌فرض منوی شناور (پنهان در دسکتاپ) */
+.floating-glass-nav {
+    display: none;
+}
+
+
+/* 📱 منوی شناور ۲ خطی در موبایل عمودی */
+@media (max-width: 768px) and (orientation: portrait) {
+    .floating-glass-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        width: 92%;
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        padding: 12px;
+        border-radius: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .glass-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .glass-btn {
+        background: rgba(255, 255, 255, 0.9);
+        color: #2c3e50;
+        text-decoration: none;
+        padding: 8px 10px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        flex-grow: 1;
+        white-space: nowrap;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+
+    .glass-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .glass-btn-circle {
+        flex-grow: 0;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2em;
+        animation: bounce 2s infinite;
+        cursor: pointer;
+        border: none;
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+}
+
+
+
+
 
     </style>
 
@@ -221,6 +367,7 @@
         navigator.serviceWorker.register('/service-worker.js');
       }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <main class="container" x-data="footballApp()" x-init="initData()" style="padding-top: 15px;">
@@ -294,99 +441,115 @@
                     <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 1em;">⚠️ زمان رو به پایان برای بازی‌های زیر:</h4>
                     <div style="margin-top: 5px;">
                         <template x-for="um in urgentMatches" :key="um.id">
-                            <span class="urgent-match-badge" x-text="um.home_team + ' ⚡ ' + um.away_team"></span>
+                            
+                            <a :href="'#match-card-' + um.id" class="urgent-match-badge" x-text="um.home_team + ' ⚡ ' + um.away_team" style="text-decoration: none; cursor: pointer; display: inline-block;"></a>
+                            
                         </template>
                     </div>
                 </div>
             </div>
 
             <div class="grid responsive-grid" style="grid-template-columns: 4fr 5fr; gap: 20px;">
-               
-                <div>
-                    <article style="padding: 1rem; border-radius: 16px;">
-                        <h3 style="color: #2980b9; margin-bottom: 15px; font-size: 1.25em; border-bottom: 2px solid #eaf2f8; padding-bottom: 8px;">بازی‌ها و پیش‌بینی (مسابقات پیش‌رو)</h3>
-                        <div dir="rtl">
-                            <template x-for="match in upcomingMatches" :key="match.id">
-                                <div>
-                                   
-                                    <div x-show="match.home_team && match.home_team.includes('ایران') && match.away_team && match.away_team.includes('نیوزلند')"
-                                         style="background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); color: white; text-align: center; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; font-size: 0.95em; box-shadow: 0 4px 10px rgba(230,126,34,0.25); border: 1px solid #f5b041;">
-                                        🚀 شروع رسمی مسابقات پیش‌بینی دوستانه 🚀
-                                    </div>
+    <div>
+        <article style="padding: 1rem; border-radius: 16px;">
+            <h3 style="color: #2980b9; margin-bottom: 15px; font-size: 1.25em; border-bottom: 2px solid #eaf2f8; padding-bottom: 8px;">بازی‌ها و پیش‌بینی (مسابقات پیش‌رو)</h3>
+            <div dir="rtl">
+                
+                <template x-for="(match, index) in upcomingMatches" :key="match.id">
+                    
+                    <div class="bg-white rounded-2xl shadow-sm p-4 match-card"
+                         :id="'match-card-' + match.id"
+                         :class="{'locked': match.isLocked, 'predicted': match.hasPredicted}"
+                         :style="index % 2 !== 0 ? 'background-color: rgb(176, 224, 230);' : 'background-color: #ffffff;'">
 
-                                    <div class="match-card" :class="{'locked': match.isLocked, 'predicted': match.hasPredicted}">
-                                       
-                                        <div style="text-align: right; font-size: 0.75em; color: #7f8c8d; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 6px;">
-                                            📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
-                                        </div>
 
-                                        <div class="responsive-card-flex" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;"
-                                           
-                                            <div class="responsive-col" style="width: 42%; text-align: right; font-size: 0.8em; color: #7f8c8d;"
-                                                <div x-show="getTop3Predictions(match).length > 0" style="margin-bottom: 6px; font-weight: bold; color: #34495e;">نتایج پرتکرار دیگران:</div>
-                                                <div dir="rtl">
-                                                    <template x-for="top in getTop3Predictions(match)" :key="top.result">
-                                                        <div class="top-pred-badge" x-text="top.result + ' ⟵ ' + top.count + ' نفر'"></div>
-                                                    </template>
-                                                    <div x-show="getTop3Predictions(match).length === 0" style="color: #bbb; font-style: italic; text-align: center; padding-top: 8px;">هنوز ثبت نشده</div>
-                                                </div>
-                                            </div>
-
-                                            <div class="responsive-col" style="width: 56%; background: rgba(248,249,250,0.7); border: 1px solid rgba(0,0,0,0.03); padding: 12px; border-radius: 12px; display: flex; flex-direction: column; align-items: center;">
-    
-                                                <div x-show="!match.isLocked" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 12px; width: 100%;">
-                                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                                        <div style="width: 85px; text-align: left; font-size: 1.1em; font-weight: bold; color: #2c3e50;" x-text="match.home_team"></div>
-                                                        <input type="number" min="0" x-model.number="match.predHome" style="width: 50px !important; height: 35px !important; text-align: center; font-size: 1.1em; font-weight: bold; margin: 0; padding: 0;">
-                                                    </div>
-
-                                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                                        <div style="width: 85px; text-align: center; font-size: 1.5em; font-weight: bold; color: #bdc3c7; line-height: 0.5;">-</div>
-                                                        <div style="width: 50px;"></div> 
-                                                    </div>
-
-                                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                                    <div style="width: 85px; text-align: left; font-size: 1.1em; font-weight: bold; color: #2c3e50;" x-text="match.away_team"></div>
-                                                    <input type="number" min="0" x-model.number="match.predAway" style="width: 50px !important; height: 35px !important; text-align: center; font-size: 1.1em; font-weight: bold; margin: 0; padding: 0;">
-                                                </div>
-                                            </div>
-
-                                            <div x-show="!match.isLocked" style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px; width: 100%;">
-                                                <span x-show="match.successMsg" class="success-checkmark">✔️</span>
-                                                <button style="padding: 4px 20px; width: auto; font-size: 0.85em; margin: 0; border-radius: 20px; height: 32px; line-height: 1;"
-                                                        :style="match.hasPredicted ? 'background-color: #16a085; border-color: #12876f; box-shadow: 0 3px 6px rgba(22,160,133,0.2);' : 'background-color: #2980b9; border-color: #2471a3; box-shadow: 0 3px 6px rgba(41,128,185,0.2);'"
-                                                        @click="submitPrediction(match)"
-                                                        x-text="match.hasPredicted ? 'ویرایش ثبت' : 'ثبت پیش‌بینی'"></button>
-                                            </div>
-
-                                            <div x-show="match.hasPredicted && !match.isLocked" style="font-size: 0.8em; color: #27ae60; font-weight: bold; width: 100%; text-align: center;">
-                                                ثبت شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
-                                            </div>
-
-                                            <div x-show="match.isLocked" class="locked-msg-container" style="width: 100%; justify-content: center; margin-top: 0;">
-                                                <span class="locked-msg">🔒 پایان زمان قانونی پیش‌بینی</span>
-                                            </div>
-    
-                                            <div x-show="match.isLocked && match.hasPredicted" style="margin-top: 6px; font-size: 0.85em; color: #27ae60; font-weight: bold; text-align: center;">
-                                               نهایی شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
-                                            </div>
-    
-                                            <div x-show="match.isLocked && !match.hasPredicted" style="margin-top: 6px; font-size: 0.85em; color: #e74c3c; font-weight: bold; text-align: center;">
-                                                ثبت نکرده‌اید!
-                                            </div>
-
-                                            <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText" style="margin-top: 8px;"></div>
-
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                            <template x-if="upcomingMatches.length === 0">
-                                <p style="color: gray; font-size: 0.85em; text-align: center; padding: 20px 0;">در حال حاضر هیچ مسابقه‌ای برای پیش‌بینی فعال نیست.</p>
-                            </template>
+                        <div x-show="match.home_team && match.home_team.includes('ایران') && match.away_team && match.away_team.includes('نیوزلند')"
+                             style="background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%); color: white; text-align: center; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; font-size: 0.95em; box-shadow: 0 4px 10px rgba(230,126,34,0.25); border: 1px solid #f5b041;">
+                            🚀 شروع رسمی مسابقات پیش‌بینی دوستانه 🚀
                         </div>
-                    </article>
-                </div>
+
+
+                        <div style="text-align: right; font-size: 0.75em; color: #7f8c8d; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 6px;">
+                            📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏟 <span x-text="match.stadium"></span> | 🏆 <span x-text="match.group_name"></span>
+                        </div>
+
+
+                        <div style="background: rgba(255,255,255,0.4); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; width: 100%;">
+                            
+                            <div x-show="!match.isLocked" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 12px; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div style="width: 85px; text-align: left; font-size: 1.1em; font-weight: bold; color: #2c3e50;" x-text="match.home_team"></div>
+                                    <input type="number" min="0" x-model.number="match.predHome" style="width: 50px !important; height: 35px !important; text-align: center; font-size: 1.1em; font-weight: bold; margin: 0; padding: 0;">
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div style="width: 85px; text-align: center; font-size: 1.5em; font-weight: bold; color: #bdc3c7; line-height: 0.5;">-</div>
+                                    <div style="width: 50px;"></div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div style="width: 85px; text-align: left; font-size: 1.1em; font-weight: bold; color: #2c3e50;" x-text="match.away_team"></div>
+                                    <input type="number" min="0" x-model.number="match.predAway" style="width: 50px !important; height: 35px !important; text-align: center; font-size: 1.1em; font-weight: bold; margin: 0; padding: 0;">
+                                </div>
+                            </div>
+
+
+                            <div x-show="!match.isLocked" style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 6px; width: 100%;">
+                                <span x-show="match.successMsg" class="success-checkmark">✔️</span>
+                                <button style="padding: 4px 20px; width: auto; font-size: 0.85em; margin: 0; border-radius: 20px; height: 32px; line-height: 1;"
+                                        :style="match.hasPredicted ? 'background-color: #16a085; border-color: #12876f; box-shadow: 0 3px 6px rgba(22,160,133,0.2);' : 'background-color: #2980b9; border-color: #2471a3; box-shadow: 0 3px 6px rgba(41,128,185,0.2);'"
+                                        @click="submitPrediction(match)"
+                                        x-text="match.hasPredicted ? 'ویرایش ثبت' : 'ثبت پیش‌بینی'"></button>
+                            </div>
+
+
+                            <div x-show="match.hasPredicted && !match.isLocked" style="font-size: 0.8em; color: #27ae60; font-weight: bold; width: 100%; text-align: center;">
+                                ثبت شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
+                            </div>
+
+
+                            <div x-show="match.isLocked" class="locked-msg-container" style="width: 100%; justify-content: center; margin-top: 0;">
+                                <span class="locked-msg">🔒 پایان زمان قانونی پیش‌بینی</span>
+                            </div>
+                            
+                            <div x-show="match.isLocked && match.hasPredicted" style="margin-top: 6px; font-size: 0.85em; color: #27ae60; font-weight: bold; text-align: center;">
+                               نهایی شما: <span dir="ltr" x-text="getPredictionText({home: match.savedPredHome, away: match.savedPredAway}, match)"></span>
+                            </div>
+                            
+                            <div x-show="match.isLocked && !match.hasPredicted" style="margin-top: 6px; font-size: 0.85em; color: #e74c3c; font-weight: bold; text-align: center;">
+                                ثبت نکرده‌اید!
+                            </div>
+
+
+                            <div x-show="match.countdownText && !match.isLocked" class="countdown" x-text="'⏳ ' + match.countdownText" style="margin-top: 8px;"></div>
+                        </div>
+
+
+                        <div style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.1); width: 100%;">
+                            <div x-show="getTop3Predictions(match).length > 0" style="text-align: center;">
+                                <div style="margin-bottom: 10px; font-weight: bold; color: #34495e; font-size: 0.85em;">نتایج پرتکرار دیگران:</div>
+                                <div dir="rtl" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 8px;">
+                                    <template x-for="top in getTop3Predictions(match)" :key="top.result">
+                                        <div class="top-pred-badge" style="background: rgba(255,255,255,0.8); border: 1px solid #ddd; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; color: #555; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" x-text="top.result + ' ⟵ ' + top.count + ' نفر'"></div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div x-show="getTop3Predictions(match).length === 0" style="color: #bbb; font-style: italic; text-align: center; font-size: 0.85em;">
+                                نتایج پرتکرار: هنوز ثبت نشده
+                            </div>
+                        </div>
+
+
+                    </div>
+                </template>
+                
+                <template x-if="upcomingMatches.length === 0">
+                    <p style="color: gray; font-size: 0.85em; text-align: center; padding: 20px 0;">در حال حاضر هیچ مسابقه‌ای برای پیش‌بینی فعال نیست.</p>
+                </template>
+
+
+            </div>
+        </article>
+    </div>
+
 
                 <div>
                     <article id="leaderboard-section" style="margin-bottom: 20px; padding: 1rem; border-radius: 16px;">
@@ -395,32 +558,48 @@
                             <table class="striped leaderboard-table" style="margin: 0;">
                                 <thead>
                                     <tr>
-                                        <th>رتبه</th><th>کاربر</th><th>جایزه (تومان)</th><th>امتیاز کل</th><th>۳ امتیاز</th><th>۲ امتیاز</th><th>۱ امتیاز</th><th>غلط</th><th>غایب</th>
+                                        <th>رتبه</th>
+                                        <th>کاربر</th>
+                                        <th>جایزه <span class="hide-mobile">(تومان)</span></th>
+                                        <th><span class="hide-mobile">امتیاز </span>کل</th>
+                                        <th>۳ <span class="hide-mobile">امتیاز</span></th>
+                                        <th>۲ <span class="hide-mobile">امتیاز</span></th>
+                                        <th>۱ <span class="hide-mobile">امتیاز</span></th>
+                                        <th>غلط</th>
+                                        <th>غایب</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template x-for="(user, index) in leaderboard" :key="user.id">
-                                        <tr>
-                                            <td><strong x-text="user.rank"></strong></td>
-                                            <td style="text-align: right; padding-right: 10px;">
-                                                <span x-show="user.trend === 'up'" class="rank-up" title="صعود رتبه">▲</span>
-                                                <span x-show="user.trend === 'down'" class="rank-down" title="سقوط رتبه">▼</span>
-                                                <span x-show="user.trend === 'stable'" class="rank-stable" title="بدون تغییر">-</span>
-                                                <strong x-text="user.username" style="color: #34495e;"></strong>
-                                            </td>
-                                            <td><strong x-text="user.prize > 0 ? user.prize.toLocaleString('fa-IR') : '۰'" style="color: #2980b9;"></strong></td>
-                                            <td><strong x-text="user.score" style="color: #27ae60; font-size: 1.15em;"></strong></td>
-                                            <td x-text="user.exact"></td>
-                                            <td x-text="user.diff"></td>
-                                            <td x-text="user.winner"></td>
-                                            <td x-text="user.wrong" style="color: #e74c3c;"></td>
-                                            <td x-text="user.missed" style="color: #95a5a6;"></td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </article>
+                                    <tr>
+                                        <td><strong x-text="user.rank"></strong></td>
+                                        <td style="text-align: right; padding-right: 10px;">
+                                            <span x-show="user.trend === 'up'" class="rank-up" title="صعود رتبه">▲</span>
+                                            <span x-show="user.trend === 'down'" class="rank-down" title="سقوط رتبه">▼</span>
+                                            <span x-show="user.trend === 'stable'" class="rank-stable" title="بدون تغییر">-</span>
+                                            <strong x-text="user.username" style="color: #34495e;"></strong>
+                                        </td>
+                                        <td><strong x-text="user.prize > 0 ? user.prize.toLocaleString('fa-IR') : '۰'" style="color: #2980b9;"></strong></td>
+                                        <td><strong x-text="user.score" style="color: #27ae60; font-size: 1.15em;"></strong></td>
+                                        <td x-text="user.exact"></td>
+                                        <td x-text="user.diff"></td>
+                                        <td x-text="user.winner"></td>
+                                        <td x-text="user.wrong" style="color: #e74c3c;"></td>
+                                        <td x-text="user.missed" style="color: #95a5a6;"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+    
+                    <div style="text-align: center; margin-top: 15px;">
+                        <button @click="downloadTableImage()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.1s;">
+                            📸 ذخیره جدول
+                    </button>
+                </div>
+            </article>
+
+
 
                     <article id="finished-matches-section" style="padding: 1rem; border-radius: 16px;">
                         <h3 style="color: #27ae60; margin-bottom: 15px; font-size: 1.25em; border-bottom: 2px solid #eef9f0; padding-bottom: 8px;">نتایج بازی‌های برگزار شده 🏁</h3>
@@ -481,11 +660,21 @@
             </div>
         </div>
 
+        <!-- 🌟 منوی شناور شیشه‌ای ۲ خطی -->
         <div class="floating-glass-nav" x-show="isLoggedIn">
-            <a href="#leaderboard-section" class="glass-btn">🏆 برو به جدول لایو</a> 
-            <a href="#finished-matches-section" class="glass-btn">🏁 نتایج بازی‌های قبل</a> 
-        </div> 
-    </main>
+            <!-- لاین بالا -->
+            <div class="glass-row">
+                <a href="#leaderboard-section" class="glass-btn">🏆 جدول لایو</a>
+                <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="glass-btn glass-btn-circle">⬆️</button>
+                <a href="#finished-matches-section" class="glass-btn">🏁 بازی‌های قبلی</a>
+            </div>
+            <!-- لاین پایین -->
+            <div class="glass-row">
+                <a href="#my-predictions-section" class="glass-btn" style="width: 100%;">📊 مشاهده تمام امتیازات من</a>
+            </div>
+        </div>
+
+     </main>
 
     <script>
         function footballApp() {
@@ -681,7 +870,46 @@
                         }
                         else alert("خطا: " + (d.detail || ""));
                     });
-                }
+                },  
+                downloadTableImage() {
+                    const tableElement = document.getElementById('leaderboard-section');
+                    
+                    // ساخت واترمارک موقت
+                    const watermark = document.createElement('div');
+                    watermark.innerText = '🌐 FootballPishbini.Liara.ir'; // آدرس سایت خود را اینجا بنویسید
+                    watermark.style.position = 'absolute';
+                    watermark.style.bottom = '5px';
+                    watermark.style.left = '50%';
+                    watermark.style.transform = 'translateX(-50%)';
+                    watermark.style.color = 'rgba(150, 150, 150, 0.4)';
+                    watermark.style.fontSize = '12px';
+                    watermark.style.fontWeight = 'bold';
+                    tableElement.style.position = 'relative';
+                    tableElement.appendChild(watermark);
+
+
+                    // عکس‌برداری از جدول
+                    html2canvas(tableElement, { 
+                        backgroundColor: '#ffffff',
+                        scale: 2 // کیفیت بالا
+                    }).then(canvas => {
+                        // حذف واترمارک پس از عکس‌برداری
+                        tableElement.removeChild(watermark);
+                        
+                        // ساخت نام فایل به همراه تاریخ و ساعت
+                        let date = new Date();
+                        let dateString = date.toLocaleDateString('fa-IR').replace(/\//g, '-');
+                        let timeString = date.toLocaleTimeString('fa-IR').replace(/:/g, '-');
+                        
+                        // دانلود فایل
+                        let link = document.createElement('a');
+                        link.download = `football pishbini ${dateString} ${timeString}.jpg`;
+                        link.href = canvas.toDataURL('image/jpeg', 0.9);
+                        link.click();
+                    });
+                },
+
+
             };
         }
     </script>

@@ -2,6 +2,30 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+# 🎯 قدم اول: دیکشنری تبدیل نام کاربری به نام محترمانه و تابع مبدل
+USER_MAPPING = {
+    "Hadi": "آقا هادی لطفی",
+    "AmirAKS9": "امیر آقا عباسی",
+    "Nima": "آقا نیما",
+    "Naser": "آقا ناصر",
+    "Gemany": "آقا ساجد",
+    "Sana": "آقا سعید",
+    "Hamid": "آقا حمید",
+    "alisaj": "علی آقا سجادی",
+    "alims": "علی آقا متولیان",
+    "مسعود": "آقا مسعود",
+    "ایران_رویایی": "آقا نادر",
+    "hadisajadi": "آقا هادی متولیان",
+    "amir_rainboe": "امیر آقا عباسی"
+}
+
+def get_persian_name(username):
+    return USER_MAPPING.get(username, username)
+
+# ==========================================
+# تنظیمات اصلی دیتابیس
+# ==========================================
+
 if not os.path.exists("data"):
     os.makedirs("data")
 
@@ -58,3 +82,4 @@ class SystemSetting(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, index=True)
     value = Column(String)
+

@@ -21,6 +21,28 @@ from contextlib import asynccontextmanager
 
 import database as db
 
+# 🎯 دیکشنری تبدیل نام کاربری به نام محترمانه
+USER_MAPPING = {
+    "Hadi": "آقا هادی لطفی",
+    "AmirAKS9": "امیر آقا عباسی",
+    "Nima": "آقا نیما",
+    "Naser": "آقا ناصر",
+    "Gemany": "آقا ساجد",
+    "Sana": "آقا سعید",
+    "Hamid": "آقا حمید",
+    "alisaj": "علی آقا سجادی",
+    "alims": "علی آقا متولیان",
+    "مسعود": "آقا مسعود",
+    "ایران_رویایی": "آقا نادر",
+    "hadisajadi": "آقا هادی متولیان",
+    "amir_rainboe": "امیر آقا عباسی"
+}
+
+
+def get_persian_name(username):
+    if not username: return "کاربر ناشناس"
+    return USER_MAPPING.get(username, username)
+
 # --- تنظیمات اتصال به بله ---
 BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
@@ -348,32 +370,76 @@ def calculate_leaderboard_data(db_session):
 
 def generate_bale_summary_message(db_session: Session, finished_match_id: int) -> str:
     match = db_session.query(db.Match).filter(db.Match.id == finished_match_id).first()
-    if not match: 
+    if not match:
         return ""
-        
+       
+    # دریافت اطلاعات لحظه‌ای جدول برای استخراج ترند و جایزه
+    lb_data = calculate_leaderboard_data(db_session)
+    user_stats = {item['id']: item for item in lb_data}
+
+
+    rlm = "\u200F" # کاراکتر نامرئی برای راست‌چین کردن قطعی پیام‌ها
     msg_parts = [
-        "🏁 **سوت پایان! نتیجه نهایی در سیستم ثبت شد** 🏁\n",
-        f"⚽️ **{match.home_team} {match.actual_home_goals} - {match.actual_away_goals} {match.away_team}**",
-        "*(پایان بازی)*\n\n🏆 **وضعیت جدول و عملکرد کاربران در این بازی:**\n"
+        f"{rlm}🏁 **سوت پایان! نتیجه نهایی در سیستم ثبت شد** 🏁\n",
+        f"{rlm}⚽️ **{match.home_team} {match.actual_home_goals} - {match.actual_away_goals} {match.away_team}**",
+        f"{rlm}*(پایان بازی)*\n\n{rlm}🏆 **وضعیت جدول و عملکرد کاربران در این بازی:**\n"
     ]
-    predictions = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == finished_match_id).order_by(db.User.score.desc()).all()
-    medals = ["🥇", "🥈", "🥉"]
     
+    predictions = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == finished_match_id).all()
+    # مرتب‌سازی کاربران بر اساس امتیاز کل آن‌ها در جدول
+    predictions.sort(key=lambda x: user_stats.get(x[1].id, {}).get('score', 0), reverse=True)
+    
+    medals = ["🥇", "🥈", "🥉"]
     for idx, (pred, user) in enumerate(predictions):
         medal = medals[idx] if idx < 3 else "👤"
-        if pred.predicted_home_goals == match.actual_home_goals and pred.predicted_away_goals == match.actual_away_goals: 
+        stats = user_stats.get(user.id, {})
+        
+        # ۱. رفع باگ فرمول امتیازدهی
+        ph = pred.predicted_home_goals
+        pa = pred.predicted_away_goals
+        ah = match.actual_home_goals
+        aa = match.actual_away_goals
+        
+        if ph == ah and pa == aa:
             point_text = "👈 *3 امتیاز کامل*"
-        elif (pred.predicted_home_goals > pred.predicted_away_goals and match.actual_home_goals > match.actual_away_goals) or (pred.predicted_home_goals < pred.predicted_away_goals and match.actual_home_goals < match.actual_away_goals) or (pred.predicted_home_goals == pred.predicted_away_goals and match.actual_home_goals == match.actual_away_goals): 
-            point_text = "👈 *1 امتیاز*"
-        else: 
+        elif (ph - pa) == (ah - aa):
+            point_text = "👈 *2 امتیاز (تفاضل)*"
+        elif (ph > pa and ah > aa) or (ph < pa and ah < aa):
+            point_text = "👈 *1 امتیاز (برنده)*"
+        else:
             point_text = "👈 *بدون امتیاز*"
-            
-        display_name = user.username if user.username else user.name
-        msg_parts.append(f"{medal} **{display_name}** | ⭐️ {user.score} امتیاز کل\n🎯 پیش‌بینی: ({pred.predicted_home_goals} - {pred.predicted_away_goals}) {point_text}\n")
 
-    msg_parts.append("➖➖➖➖➖➖➖➖➖➖\n")
+
+        # ۲. استخراج نام تیمی که کاربر برنده دانسته
+        if ph > pa:
+            pred_winner = match.home_team
+        elif pa > ph:
+            pred_winner = match.away_team
+        else:
+            pred_winner = "مساوی"
+
+
+        # ۳. ترند و جایزه
+        trend_val = stats.get('trend', '-')
+        prize_val = stats.get('prize', 0)
+        total_score = stats.get('score', 0)
+        
+        trend_icon = "🟢 صعود" if trend_val == 'up' else "🔴 سقوط" if trend_val == 'down' else "⚪️ ثابت"
+        prize_text = f" | 💰 {prize_val:,.0f} تومان" if prize_val > 0 else ""
+
+
+        # ۴. تغییر نام کاربری
+        raw_name = user.username if user.username else user.name
+        display_name = get_persian_name(raw_name)
+
+
+        # ۵. سرهم کردن پیام راست‌چین
+        msg_parts.append(f"{rlm}{medal} **{display_name}** | ⭐️ {total_score} امتیاز | 📊 {trend_icon}{prize_text}\n{rlm}🎯 حدس: ({ph} - {pa}) {pred_winner} {point_text}\n")
+
+
+    msg_parts.append(f"{rlm}➖➖➖➖➖➖➖➖➖➖\n")
     next_match = db_session.query(db.Match).filter(db.Match.status == "upcoming").order_by(db.Match.timestamp.asc()).first()
-    
+   
     if next_match:
         time_left_str = "نامشخص"
         if next_match.timestamp:
@@ -383,26 +449,32 @@ def generate_bale_summary_message(db_session: Session, finished_match_id: int) -
                 h, r = divmod(ts_secs, 3600)
                 m = r // 60
                 time_left_str = f"{h} ساعت و {m} دقیقه"
-            else: 
+            else:
                 time_left_str = "زمان ثبت پیش‌بینی تمام شده!"
 
-        msg_parts.append(f"🔜 **نبرد بعدی فرا رسید!**\n⚔️ **{next_match.home_team} 🆚 {next_match.away_team}**\n\n⏳ **زمان تا قفل فرم:** {time_left_str}\n\n👀 **پیش‌بینی‌های ثبت‌شده:**")
+
+        msg_parts.append(f"{rlm}🔜 **نبرد بعدی فرا رسید!**\n{rlm}⚔️ **{next_match.home_team} 🆚 {next_match.away_team}**\n\n{rlm}⏳ **زمان تا قفل فرم:** {time_left_str}\n\n{rlm}👀 **پیش‌بینی‌های ثبت‌شده:**")
         next_preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == next_match.id).all()
         predicted_user_ids = []
-        
+       
         for pred, user in next_preds:
-            dn = user.username if user.username else user.name
-            msg_parts.append(f"👤 {dn}: {next_match.home_team} {pred.predicted_home_goals} - {pred.predicted_away_goals} {next_match.away_team}")
+            raw_name = user.username if user.username else user.name
+            dn = get_persian_name(raw_name)
+            msg_parts.append(f"{rlm}👤 {dn}: {next_match.home_team} {pred.predicted_home_goals} - {pred.predicted_away_goals} {next_match.away_team}")
             predicted_user_ids.append(user.id)
+
 
         all_users = db_session.query(db.User).all()
         missing_users = [u for u in all_users if u.id not in predicted_user_ids]
         if missing_users:
-            msg_parts.append("\n⚠️ **هشدار به غایبین!**\nتا دیر نشده فرم رو پر کنید:")
-            msg_parts.append(", ".join([f"@{u.username if u.username else u.name}" for u in missing_users]))
+            msg_parts.append(f"\n{rlm}⚠️ **هشدار به غایبین!**\n{rlm}تا دیر نشده فرم رو پر کنید:")
+            missing_names = [f"@{get_persian_name(u.username if u.username else u.name)}" for u in missing_users]
+            msg_parts.append(f"{rlm}" + "، ".join(missing_names))
 
-    msg_parts.append("\n👇 **همین الان به سایت مراجعه و پیش‌بینی‌ات رو ثبت کن!**")
+
+    msg_parts.append(f"\n{rlm}👇 **همین الان به سایت مراجعه و پیش‌بینی‌ات رو ثبت کن!**")
     return "\n".join(msg_parts)
+
 
 # --- مسیرهای مربوط به FastAPI ---
 
@@ -793,14 +865,22 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                 if not matches:
                     send_bale_notification("❌ هیچ مسابقه‌ای ثبت نشده است.", target_chat_id=chat_id)
                 else:
-                    chunk_size = 5
-                    for i in range(0, len(matches), chunk_size):
-                        chunk = matches[i:i+chunk_size]
-                        msg = f"📋 **لیست مسابقات (بخش {i//chunk_size + 1}):**\n\n"
-                        for m in chunk:
+                    from collections import defaultdict
+                    grouped_matches = defaultdict(list)
+                    
+                    # دسته‌بندی بازی‌ها بر اساس نام گروه
+                    for m in matches:
+                        group_n = m.group_name if m.group_name else "نامشخص"
+                        grouped_matches[group_n].append(m)
+                    
+                    # ارسال هر گروه در یک پیام مجزا
+                    for group_name, m_list in grouped_matches.items():
+                        msg = f"🏆 **بازی‌های {group_name}:**\n\n"
+                        for m in m_list:
                             status_text = "🏁 تمام‌شده" if m.status == "finished" else "⏳ آینده"
                             msg += f"⚔️ **{m.home_team} - {m.away_team}**\n🆔 ID: {m.id} | {status_text}\n📊 /mp_{m.id} | ⚠️ /absent_{m.id}\n-------------------\n"
                         send_bale_notification(msg, target_chat_id=chat_id)
+
 
             elif text.startswith("/mp_"):
                 try:

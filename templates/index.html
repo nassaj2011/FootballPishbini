@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>لیگ پیش‌بینی فوتبال</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-    <link rel="manifest" href="/manifest.json">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
    
     <style>
@@ -185,6 +184,7 @@
             }
 
 
+            
 /* حالت پیش‌فرض منوی شناور (پنهان در دسکتاپ) */
 .floating-glass-nav {
     display: none;
@@ -368,6 +368,7 @@
       }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        </script>
 </head>
 <body>
     <main class="container" x-data="footballApp()" x-init="initData()" style="padding-top: 15px;">
@@ -554,7 +555,8 @@
                 <div>
                     <article id="leaderboard-section" style="margin-bottom: 20px; padding: 1rem; border-radius: 16px;">
                         <h3 style="margin-bottom: 15px; font-size: 1.25em; border-bottom: 2px solid #eaf2f8; padding-bottom: 8px;">جدول رده‌بندی زنده لیگ 🏆</h3>
-                        <div style="overflow-x: auto;">
+                        
+                        <div id="capture-table-zone" style="overflow-x: auto; background-color: #ffffff; padding: 10px; border-radius: 12px;">
                             <table class="striped leaderboard-table" style="margin: 0;">
                                 <thead>
                                     <tr>
@@ -570,6 +572,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+
                                     <template x-for="(user, index) in leaderboard" :key="user.id">
                                     <tr>
                                         <td><strong x-text="user.rank"></strong></td>
@@ -659,6 +662,45 @@
                 </div>
             </div>
         </div>
+         
+        <!-- 📊 بخش امتیازات و پیش‌بینی‌های من -->
+        <article id="my-predictions-section" style="margin-top: 20px; padding: 1rem; border-radius: 16px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.05);" x-show="isLoggedIn">
+            <h3 style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">📊 تمام امتیازات من</h3>
+            <div style="display: grid; gap: 10px;" dir="rtl">
+                
+                <template x-for="match in matches.filter(m => m.status === 'finished')" :key="match.id">
+                    <div style="border: 1px solid #eee; border-radius: 12px; padding: 10px; background: #fafafa; position: relative;">
+                        
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9em; margin-bottom: 8px;">
+                            <span x-text="match.home_team + ' ' + match.actual_home_goals + ' - ' + match.actual_away_goals + ' ' + match.away_team"></span>
+                            
+                            <span x-show="!match.hasPredicted" style="color: #e74c3c; font-size: 0.85em;">❌ غایب</span>
+                            <span x-show="match.hasPredicted" style="color: #28a745; font-size: 0.85em;">✅ ثبت شده</span>
+                        </div>
+
+                        <div x-show="match.hasPredicted" style="display: flex; justify-content: space-between; align-items: center; background: #e8f8f5; padding: 6px 10px; border-radius: 8px;">
+                            <div style="font-size: 0.8em; color: #555;">
+                                پیش‌بینی شما: <span style="font-weight: bold; color: #16a085;" dir="ltr" x-text="match.savedPredHome + ' - ' + match.savedPredAway"></span>
+                            </div>
+                            <div style="font-size: 0.8em; font-weight: bold;">
+                                امتیاز: <span x-text="getMatchScore(match)" :style="getMatchScore(match) == 3 ? 'color: #27ae60;' : (getMatchScore(match) == 0 ? 'color: #e74c3c;' : 'color: #f39c12;')"></span>
+                            </div>
+                        </div>
+
+                        <div x-show="!match.hasPredicted" style="font-size: 0.8em; color: #c0392b; background: #fdedec; padding: 6px 10px; border-radius: 8px; text-align: center;">
+                            شما در زمان مقرر برای این بازی پیش‌بینی ثبت نکردید (امتیاز: ۰)
+                        </div>
+
+                    </div>
+                </template>
+
+                <div x-show="matches.filter(m => m.status === 'finished').length === 0" style="text-align: center; color: gray; font-size: 0.85em; padding: 15px 0;">
+                    هنوز هیچ بازی تمام‌شده‌ای وجود ندارد.
+                </div>
+
+            </div>
+        </article>
+
 
         <!-- 🌟 منوی شناور شیشه‌ای ۲ خطی -->
         <div class="floating-glass-nav" x-show="isLoggedIn">
@@ -872,41 +914,83 @@
                     });
                 },  
                 downloadTableImage() {
-                    const tableElement = document.getElementById('leaderboard-section');
+                    const tableElement = document.getElementById('capture-table-zone');
                     
-                    // ساخت واترمارک موقت
-                    const watermark = document.createElement('div');
-                    watermark.innerText = '🌐 FootballPishbini.Liara.ir'; // آدرس سایت خود را اینجا بنویسید
-                    watermark.style.position = 'absolute';
-                    watermark.style.bottom = '5px';
-                    watermark.style.left = '50%';
-                    watermark.style.transform = 'translateX(-50%)';
-                    watermark.style.color = 'rgba(150, 150, 150, 0.4)';
-                    watermark.style.fontSize = '12px';
-                    watermark.style.fontWeight = 'bold';
-                    tableElement.style.position = 'relative';
-                    tableElement.appendChild(watermark);
+                    if (!tableElement) {
+                        alert("محدوده جدول یافت نشد!");
+                        return;
+                    }
 
-
-                    // عکس‌برداری از جدول
-                    html2canvas(tableElement, { 
+                    // استفاده از قابلیت onclone برای ویرایش موقت سایت فقط برای عکس‌برداری
+                    html2canvas(tableElement, {
+                        scale: 2, // کیفیت بالا
                         backgroundColor: '#ffffff',
-                        scale: 2 // کیفیت بالا
+                        useCORS: true,
+                        allowTaint: true,
+                        onclone: function (clonedDoc) {
+                            const clonedTableZone = clonedDoc.getElementById('capture-table-zone');
+                            
+                            // ۱. اضافه کردن واترمارک به نسخه کپی‌شده (بدون دستکاری سایت اصلی)
+                            const watermark = clonedDoc.createElement('div');
+                            watermark.innerText = '🌐 YourSiteName.ir'; // آدرس سایت شما
+                            watermark.style.position = 'absolute';
+                            watermark.style.bottom = '5px';
+                            watermark.style.left = '50%';
+                            watermark.style.transform = 'translateX(-50%)';
+                            watermark.style.color = 'rgba(150, 150, 150, 0.6)';
+                            watermark.style.fontSize = '12px';
+                            watermark.style.fontWeight = 'bold';
+                            watermark.style.direction = 'ltr';
+                            clonedTableZone.style.position = 'relative';
+                            clonedTableZone.style.paddingBottom = '30px'; // ایجاد فضا برای واترمارک
+                            clonedTableZone.appendChild(watermark);
+
+                            // ۲. 🌟 حل مشکل جدا شدن حروف فارسی در عنوان‌ها 🌟
+                            const headers = clonedTableZone.querySelectorAll('th');
+                            headers.forEach(th => {
+                                const spans = th.querySelectorAll('.hide-mobile');
+                                spans.forEach(span => {
+                                    // اگر کاربر در موبایل است، کلمه را در عکس هم حذف می‌کنیم تا جدول فشرده بماند
+                                    if (window.innerWidth <= 768) {
+                                        span.innerText = '';
+                                    } else {
+                                        // در دسکتاپ، تگ span را برمیداریم تا کلمه یکپارچه شود و حروف جدا نشوند
+                                        const textNode = clonedDoc.createTextNode(span.innerText);
+                                        span.replaceWith(textNode);
+                                    }
+                                });
+                            });
+                        }
                     }).then(canvas => {
-                        // حذف واترمارک پس از عکس‌برداری
-                        tableElement.removeChild(watermark);
-                        
                         // ساخت نام فایل به همراه تاریخ و ساعت
                         let date = new Date();
                         let dateString = date.toLocaleDateString('fa-IR').replace(/\//g, '-');
                         let timeString = date.toLocaleTimeString('fa-IR').replace(/:/g, '-');
                         
-                        // دانلود فایل
+                        // دانلود خودکار فایل تصویر
                         let link = document.createElement('a');
-                        link.download = `football pishbini ${dateString} ${timeString}.jpg`;
-                        link.href = canvas.toDataURL('image/jpeg', 0.9);
+                        link.download = `football-pishbini-${dateString}-${timeString}.jpg`;
+                        link.href = canvas.toDataURL('image/jpeg', 0.95); // فرمت JPG با کیفیت 95%
                         link.click();
+                    }).catch(err => {
+                        console.error("خطا در عکس‌برداری:", err);
+                        alert("خطایی در ذخیره تصویر رخ داد.");
                     });
+                },
+
+                getMatchScore(match) {
+                    // اگر پیش‌بینی نکرده یا بازی هنوز نتیجه ندارد، امتیاز صفر است
+                    if (!match.hasPredicted || match.actual_home_goals === null || match.actual_away_goals === null) return 0;
+                    
+                    let ph = parseInt(match.savedPredHome);
+                    let pa = parseInt(match.savedPredAway);
+                    let ah = parseInt(match.actual_home_goals);
+                    let aa = parseInt(match.actual_away_goals);
+                    
+                    if (ph === ah && pa === aa) return 3; // نتیجه کاملاً دقیق
+                    if ((ph - pa) === (ah - aa)) return 2; // تفاضل گل درست
+                    if ((ph > pa && ah > aa) || (ph < pa && ah < aa)) return 1; // تشخیص درست برنده
+                    return 0; // غلط
                 },
 
 

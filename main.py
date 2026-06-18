@@ -27,15 +27,15 @@ USER_MAPPING = {
     "AmirAKS9": "امیر آقا عباسی",
     "Nima": "آقا نیما",
     "Naser": "آقا ناصر",
-    "Gemany": "آقا ساجد",
+    "gemany": "آقا ساجد",
     "Sana": "آقا سعید",
     "Hamid": "آقا حمید",
     "alisaj": "علی آقا سجادی",
-    "alims": "علی آقا متولیان",
+    "Alims": "علی آقا متولیان",
     "مسعود": "آقا مسعود",
     "ایران_رویایی": "آقا نادر",
-    "hadisajadi": "آقا هادی متولیان",
-    "amir_rainboe": "امیر آقا عباسی"
+    "Hadisajadi": "آقا هادی متولیان",
+    "Amir_Rainbow": "امیر آقا عباسی"
 }
 
 
@@ -503,6 +503,16 @@ def get_prize(db_session: Session = Depends(get_db)):
     setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
     return {"total_prize": float(setting.value) if setting else 0.0}
 
+ @app.get("/admin/force-pred/{secret_pass}/{user_id}/{match_id}/{home}/{away}")
+def force_prediction(secret_pass: str, user_id: int, match_id: int, home: int, away: int, db_session: Session = Depends(get_db)):
+    if secret_pass != "admin12345": # رمز عبور موقت شما
+        return {"error": "دسترسی غیرمجاز"}
+    
+    new_pred = db.Prediction(user_id=user_id, match_id=match_id, predicted_home_goals=home, predicted_away_goals=away)
+    db_session.add(new_pred)
+    db_session.commit()
+    return {"status": "success", "message": "پیش‌بینی با موفقیت برای کاربر ثبت شد."}   
+    
 @app.post("/admin/prize")
 def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
     setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()

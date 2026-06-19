@@ -512,6 +512,30 @@ def force_prediction(secret_pass: str, user_id: int, match_id: int, home: int, a
     db_session.add(new_pred)
     db_session.commit()
     return {"status": "success", "message": "پیش‌بینی با موفقیت برای کاربر ثبت شد."}   
+
+   @app.post("/matches/edit-date/{match_id}")
+def edit_match_date(match_id: int, new_date: str, new_time: str, db_session: Session = Depends(get_db)):
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if not match:
+        return {"status": "error", "message": "بازی یافت نشد"}
+        
+    # محاسبه مجدد زمان قفل شدن فرم با تاریخ و ساعت جدید
+    new_ts = get_tehran_timestamp(new_date, new_time)
+    if not new_ts:
+        import time
+        new_ts = time.time() + 86400 # اگر تاریخ نامعتبر بود، ۲۴ ساعت باز بماند
+        
+    match.match_date = new_date
+    match.match_time = new_time
+    match.timestamp = new_ts
+    
+    # بازگردانی بازی به حالت فعال (جهت اطمینان)
+    match.status = "upcoming"
+    match.actual_home_goals = None
+    match.actual_away_goals = None
+    
+    db_session.commit()
+    return {"status": "success", "message": "تاریخ بازی با موفقیت تغییر کرد و فرم باز شد."}
     
 @app.post("/admin/prize")
 def set_prize(total_prize: float, db_session: Session = Depends(get_db)):

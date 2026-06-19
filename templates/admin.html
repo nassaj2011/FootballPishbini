@@ -149,8 +149,9 @@
                                     </div>
                                     
                                     <div style="font-size: 0.8em; color: gray; margin-top: 4px;">
-                                        📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏆 <span x-text="match.group_name"></span>
-                                    </div>
+                                     📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏆 <span x-text="match.group_name"></span>
+                                     <a href="#" @click.prevent="editMatchDate(match)" style="margin-right: 15px; color: #e67e22; text-decoration: none; font-weight: bold;">🕒 ویرایش زمان</a>
+                                  </div>
                                 </div>
                             </div>
                             
@@ -334,6 +335,28 @@
                     });
                 },
                 
+                // 🌟 این همان تابع جدید است که در کنار بقیه اضافه شده است 🌟
+                editMatchDate(match) {
+                    const newDate = prompt("لطفاً تاریخ جدید را وارد کنید:", match.match_date);
+                    if (!newDate) return;
+                    
+                    const newTime = prompt("لطفاً ساعت جدید را وارد کنید:", match.match_time);
+                    if (!newTime) return;
+
+                    fetch(`/matches/edit-date/${match.id}?new_date=${encodeURIComponent(newDate)}&new_time=${encodeURIComponent(newTime)}`, { 
+                        method: 'POST' 
+                    })
+                    .then(r => r.json())
+                    .then(d => {
+                        if(d.status === "success") {
+                            alert("تاریخ بازی تغییر کرد و فرم مسابقه مجدداً باز شد.");
+                            this.initData(); // رفرش کردن جدول
+                        } else {
+                            alert("خطا در سرور: " + d.message);
+                        }
+                    });
+                },
+               
                 updatePrize() {
                     if (this.totalPrize < 0) return alert("رقم جایزه صندوق نمی‌تواند منفی باشد.");
                     fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })

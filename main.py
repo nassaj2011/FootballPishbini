@@ -519,17 +519,15 @@ def edit_match_date(match_id: int, new_date: str, new_time: str, db_session: Ses
     if not match:
         return {"status": "error", "message": "بازی یافت نشد"}
         
-    # محاسبه مجدد زمان قفل شدن فرم با تاریخ و ساعت جدید
     new_ts = get_tehran_timestamp(new_date, new_time)
     if not new_ts:
         import time
-        new_ts = time.time() + 86400 # اگر تاریخ نامعتبر بود، ۲۴ ساعت باز بماند
+        new_ts = time.time() + 86400 
         
     match.match_date = new_date
     match.match_time = new_time
     match.timestamp = new_ts
     
-    # بازگردانی بازی به حالت فعال (جهت اطمینان)
     match.status = "upcoming"
     match.actual_home_goals = None
     match.actual_away_goals = None

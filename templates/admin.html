@@ -323,19 +323,9 @@
                 },
                 
                 saveMatchEdit(m) {
-                    if(!m.home_team.trim() || !m.away_team.trim()) return alert("نام تیم نمی‌تواند خالی باشد");
-                    fetch(`/matches/edit/${m.id}?home=${encodeURIComponent(m.home_team.trim())}&away=${encodeURIComponent(m.away_team.trim())}`, { method: 'POST' })
-                    .then(r => r.json()).then(d => {
-                        if(d.status === "success") {
-                            m.isEditing = false;
-                            alert(`نام جدید تیم‌ها با موفقیت بازنویسی شد.`);
-                        } else {
-                            alert("خطایی در سرور رخ داد. مجدداً تلاش کنید.");
-                        }
-                    });
+                    // ... کدهای این بخش تغییر نمی‌کند ...
                 },
                 
-                // 🌟 این همان تابع جدید است که در کنار بقیه اضافه شده است 🌟
                 editMatchDate(match) {
                     const newDate = prompt("لطفاً تاریخ جدید را وارد کنید:", match.match_date);
                     if (!newDate) return;
@@ -350,13 +340,13 @@
                     .then(d => {
                         if(d.status === "success") {
                             alert("تاریخ بازی تغییر کرد و فرم مسابقه مجدداً باز شد.");
-                            this.initData(); // رفرش کردن جدول
+                            this.initData(); 
                         } else {
                             alert("خطا در سرور: " + d.message);
                         }
                     });
                 },
-               
+                
                 updatePrize() {
                     if (this.totalPrize < 0) return alert("رقم جایزه صندوق نمی‌تواند منفی باشد.");
                     fetch(`/admin/prize?total_prize=${this.totalPrize}`, { method: 'POST' })

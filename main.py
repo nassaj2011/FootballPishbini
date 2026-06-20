@@ -281,6 +281,9 @@ def get_manifest():
 def get_service_worker():
     return FileResponse("static/sw.js", media_type="application/javascript")
 
+@app.get("/service-worker.js", include_in_schema=False) 
+def get_service_worker_alt(): 
+    return FileResponse("static/sw.js", media_type="application/javascript") 
 
 def get_db():
     db_session = db.SessionLocal()
@@ -1003,6 +1006,100 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                     send_bale_notification(msg if missing_users else "✅ همه پیش‌بینی کرده‌اند.", target_chat_id=chat_id)
                 except ValueError: 
                     pass
+
+            elif text.startswith("/rep"):
+                try:
+                    # استخراج شماره بازی بدون خط تیره (مثل /rep12)
+                    m_id = int(text.replace("/rep", "").strip())
+                    match = db_session.query(db.Match).filter(db.Match.id == m_id).first()
+                    if not match:
+                        send_bale_notification("❌ بازی یافت نشد.", target_chat_id=chat_id)
+                        return {"status": "ok"}
+                    
+                    if match.status != "finished":
+                        send_bale_notification("⚠️ این بازی هنوز تمام نشده است و نتیجه‌ای برای کالبدشکافی ندارد.", target_chat_id=chat_id)
+                        return {"status": "ok"}
+
+                    # --- بخش اول: ساخت جدول لایو ---
+                    lb_data = calculate_leaderboard_data(db_session)
+                    caption_parts = ["🏆 **جدول رده‌بندی لایو:**\n"]
+                    
+                    for row in lb_data:
+                        medal = "🥇" if row['rank'] == 1 else "🥈" if row['rank'] == 2 else "🥉" if row['rank'] == 3 else "🏅"
+                        caption_parts.append(f"{medal} رتبه {row['rank']} | {row['username']} | ⭐️ {row['score']} امتیاز")
+                    
+                    caption_parts.append("\n➖➖➖➖➖➖➖➖➖➖")
+
+                    # --- بخش دوم: کالبدشکافی امتیازات بازی ---
+                    predictions = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == m_id).all()
+                    p_3, p_2, p_1, p_0 = [], [], [], []
+                    ah = match.actual_home_goals
+                    aa = match.actual_away_goals
+                    
+                    for pred, user in predictions:
+                        ph = pred.predicted_home_goals
+                        pa = pred.predicted_away_goals
+                        display_name = get_persian_name(user.username if user.username else user.name)
+                        
+                        if ah is not None and aa is not None:
+                            if ph == ah and pa == aa:
+                                p_3.append(display_name)
+                            elif (ph - pa) == (ah - aa):
+                                p_2.append(display_name)
+                            elif (ph > pa and ah > aa) or (ph < pa and ah < aa):
+                                p_1.append(display_name)
+                            else:
+                                p_0.append(display_name)
+                    
+                    str_3 = "، ".join(p_3) if p_3 else "هیچ‌کس"
+                    str_2 = "، ".join(p_2) if p_2 else "هیچ‌کس"
+                    str_1 = "، ".join(p_1) if p_1 else "هیچ‌کس"
+                    str_0 = "، ".join(p_0) if p_0 else "هیچ‌کس"
+                    
+                    caption_parts.append(f"🏁 **عملکرد کاربران در بازی شماره {m_id} ({match.home_team} {ah} - {aa} {match.away_team}):**\n")
+                    caption_parts.append(f"🎯 ۳امتیاز کامل: {str_3} | ۲امتیازی : {str_2} | ۱ امتیازی: {str_1} | ❌ بدون امتیاز: {str_0}\n")
+                    caption_parts.append("➖➖➖➖➖➖➖➖➖➖")
+                    
+                    # --- بخش سوم: رادار بازی بعدی ---
+                    next_match = db_session.query(db.Match).filter(db.Match.status == "upcoming").order_by(db.Match.timestamp.asc()).first()
+                    if next_match:
+                        time_left_str = "نامشخص"
+                        if next_match.timestamp:
+                            time_diff = datetime.fromtimestamp(next_match.timestamp) - datetime.now()
+                            ts_secs = int(time_diff.total_seconds())
+                            if ts_secs > 0:
+                                h, r = divmod(ts_secs, 3600)
+                                m = r // 60
+                                time_left_str = f"{h} ساعت و {m} دقیقه"
+                            else:
+                                time_left_str = "زمان ثبت پیش‌بینی تمام شده!"
+
+                        caption_parts.append(f"🔜 **نبرد بعدی:** {next_match.home_team} 🆚 {next_match.away_team}")
+                        caption_parts.append(f"⏳ **زمان تا قفل فرم:** {time_left_str}\n")
+                        caption_parts.append(f"👀 **پیش‌بینی‌های ثبت‌شده:**")
+                        
+                        next_preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == next_match.id).all()
+                        predicted_user_ids = []
+                        for npred, nuser in next_preds:
+                            dn = get_persian_name(nuser.username if nuser.username else nuser.name)
+                            caption_parts.append(f"👤 {dn}: {next_match.home_team} {npred.predicted_home_goals} - {npred.predicted_away_goals} {next_match.away_team}")
+                            predicted_user_ids.append(nuser.id)
+                            
+                        all_users = db_session.query(db.User).all()
+                        missing_users = [u for u in all_users if u.id not in predicted_user_ids]
+                        if missing_users:
+                            caption_parts.append(f"\n⚠️ **هشدار به غایبین! تا دیر نشده فرم را پر کنید:**")
+                            missing_names = [f"@{get_persian_name(u.username if u.username else u.name)}" for u in missing_users]
+                            caption_parts.append("، ".join(missing_names))
+
+                    caption_parts.append(f"\n👇 **همین الان به سایت مراجعه و پیش‌بینی‌ات رو ثبت کن!**")
+                    
+                    final_caption = "\n".join(caption_parts)
+                    
+                    send_bale_notification(final_caption, target_chat_id=chat_id)
+
+                except ValueError:
+                    send_bale_notification("❌ فرمت دستور اشتباه است. مثال: /rep12", target_chat_id=chat_id) 
 
             elif text.startswith("/set_"):
                 parts = text.split("_")

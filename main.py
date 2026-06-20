@@ -554,7 +554,7 @@ def get_prize(db_session: Session = Depends(get_db)):
     setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
     return {"total_prize": float(setting.value) if setting else 0.0}
 
- @app.get("/admin/force-pred/{secret_pass}/{user_id}/{match_id}/{home}/{away}")
+@app.get("/admin/force-pred/{secret_pass}/{user_id}/{match_id}/{home}/{away}")
 def force_prediction(secret_pass: str, user_id: int, match_id: int, home: int, away: int, db_session: Session = Depends(get_db)):
     if secret_pass != "admin12345": # رمز عبور موقت شما
         return {"error": "دسترسی غیرمجاز"}
@@ -564,7 +564,7 @@ def force_prediction(secret_pass: str, user_id: int, match_id: int, home: int, a
     db_session.commit()
     return {"status": "success", "message": "پیش‌بینی با موفقیت برای کاربر ثبت شد."}   
 
-   @app.post("/matches/edit-date/{match_id}")
+@app.post("/matches/edit-date/{match_id}")
 def edit_match_date(match_id: int, new_date: str, new_time: str, db_session: Session = Depends(get_db)):
     match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
     if not match:
@@ -585,20 +585,21 @@ def edit_match_date(match_id: int, new_date: str, new_time: str, db_session: Ses
     
     db_session.commit()
     return {"status": "success", "message": "تاریخ بازی با موفقیت تغییر کرد و فرم باز شد."}
-    
+
 @app.post("/admin/prize")
 def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
     setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
-    if setting: 
+    if setting:
         setting.value = str(total_prize)
-    else: 
+    else:
         db_session.add(db.SystemSetting(key="total_prize", value=str(total_prize)))
     db_session.commit()
     return {"status": "success"}
 
+
 @app.get("/test-api/{target_date}")
 def test_api_local(target_date: str, db_session: Session = Depends(get_db)):
-    # فرمت تاریخ باید حتما به شکل YYYY-MM-DD باشد
+    # کدهای این تابع جا مانده بود که اضافه شد
     result = fetch_and_update_from_api(db_session, target_date)
     return {"message": result}
 
@@ -609,13 +610,13 @@ def get_database_backup(secret_password: str):
     # این رمز عبور اختصاصی شماست
     if secret_password != "admin_my_secret_pass":
         return {"error": "⛔️ دسترسی غیرمجاز"}
-        
+       
     db_path = "data/football.db"
-    
+   
     if os.path.exists(db_path):
         return FileResponse(
-            path=db_path, 
-            filename="football_live_backup.db", 
+            path=db_path,
+            filename="football_live_backup.db",
             media_type="application/octet-stream"
         )
     else:

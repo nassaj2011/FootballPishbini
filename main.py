@@ -1021,7 +1021,18 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                         return {"status": "ok"}
 
                     # --- بخش اول: ساخت جدول لایو ---
+                    # --- بخش اول: ساخت جدول لایو ---
                     lb_data = calculate_leaderboard_data(db_session)
+                    caption_parts = ["🏆 **جدول رده‌بندی لایو:**\n"]
+                    
+                    for row in lb_data:
+                        medal = "🥇" if row['rank'] == 1 else "🥈" if row['rank'] == 2 else "🥉" if row['rank'] == 3 else "🏅"
+                        # 🌟 عبور دادن نام کاربری از دیکشنری برای نمایش محترمانه
+                        display_name = get_persian_name(row['username'] if row['username'] else row['name'])
+                        caption_parts.append(f"{medal} رتبه {row['rank']} | {display_name} | ⭐️ {row['score']} امتیاز")
+                    
+                    caption_parts.append("\n➖➖➖➖➖➖➖➖➖➖")
+
                     caption_parts = ["🏆 **جدول رده‌بندی لایو:**\n"]
                     
                     for row in lb_data:

@@ -167,6 +167,7 @@
                                     
                                     <div style="font-size: 0.8em; color: gray; margin-top: 4px;">
                                         📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span> | 🏆 <span x-text="match.group_name"></span>
+                                        <a href="#" @click.prevent="editMatchDate(match)" style="margin-right: 15px; color: #e67e22; text-decoration: none; font-weight: bold;">🕒 ویرایش زمان</a>
                                     </div>
                                 </div>
                             </div>
@@ -339,14 +340,26 @@
                 },
                 
                 saveMatchEdit(m) {
-                    if(!m.home_team.trim() || !m.away_team.trim()) return alert("نام تیم نمی‌تواند خالی باشد");
-                    fetch(`/matches/edit/${m.id}?home=${encodeURIComponent(m.home_team.trim())}&away=${encodeURIComponent(m.away_team.trim())}`, { method: 'POST' })
-                    .then(r => r.json()).then(d => {
+                    // ... کدهای این بخش تغییر نمی‌کند ...
+                },
+                
+                editMatchDate(match) {
+                    const newDate = prompt("لطفاً تاریخ جدید را وارد کنید:", match.match_date);
+                    if (!newDate) return;
+                    
+                    const newTime = prompt("لطفاً ساعت جدید را وارد کنید:", match.match_time);
+                    if (!newTime) return;
+
+                    fetch(`/matches/edit-date/${match.id}?new_date=${encodeURIComponent(newDate)}&new_time=${encodeURIComponent(newTime)}`, { 
+                        method: 'POST' 
+                    })
+                    .then(r => r.json())
+                    .then(d => {
                         if(d.status === "success") {
-                            m.isEditing = false;
-                            alert(`نام جدید تیم‌ها با موفقیت بازنویسی شد.`);
+                            alert("تاریخ بازی تغییر کرد و فرم مسابقه مجدداً باز شد.");
+                            this.initData(); 
                         } else {
-                            alert("خطایی در سرور رخ داد. مجدداً تلاش کنید.");
+                            alert("خطا در سرور: " + d.message);
                         }
                     });
                 },

@@ -5,18 +5,18 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 # 🎯 قدم اول: دیکشنری تبدیل نام کاربری به نام محترمانه و تابع مبدل
 USER_MAPPING = {
     "Hadi": "آقا هادی لطفی",
-    "AmirAKS9": "امیر آقا عباسی",
+    "AmirAKS9": "امیر آقا ",
     "Nima": "آقا نیما",
     "Naser": "آقا ناصر",
-    "Gemany": "آقا ساجد",
+    "gemany": "آقا ساجد",
     "Sana": "آقا سعید",
     "Hamid": "آقا حمید",
     "alisaj": "علی آقا سجادی",
-    "alims": "علی آقا متولیان",
+    "Alims": "علی آقا متولیان",
     "مسعود": "آقا مسعود",
     "ایران_رویایی": "آقا نادر",
-    "hadisajadi": "آقا هادی متولیان",
-    "amir_rainboe": "امیر آقا عباسی"
+    "Hadisajadi": "آقا هادی متولیان",
+    "Amir_Rainbow": "امیر آقا عباسی"
 }
 
 def get_persian_name(username):

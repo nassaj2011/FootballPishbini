@@ -3,8 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <title>پنل مدیریت | سیستم پیش‌بینی مسابقات</title>
+
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('✅ Service Worker Registered! Scope:', reg.scope))
+            .catch(err => console.error('❌ Service Worker Registration Failed:', err));
+        });
+      }
+    </script>
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <style>
         body { font-family: Tahoma, Arial, sans-serif; background-color: #fcfcfc; font-size: 14px; }
         .container { max-width: 1200px; margin-top: 2rem; padding: 0 15px; }
@@ -18,7 +34,7 @@
         .user-log-list li { padding: 8px 0; border-bottom: 1px dashed #ddd; display: flex; justify-content: space-between; }
         .audit-table th, .audit-table td { font-size: 0.85em; padding: 10px; text-align: right; vertical-align: middle; border-bottom: 1px solid #eee;}
         .audit-table th { font-weight: bold; color: #2c3e50; }
-        
+       
         details.user-pred-box { margin-bottom: 8px; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; }
         details.user-pred-box summary { font-weight: bold; cursor: pointer; color: #2c3e50; font-size: 0.9em; outline: none; margin-bottom: 0; list-style-type: none; display: flex; justify-content: space-between; align-items: center;}
         details.user-pred-box summary::-webkit-details-marker { display: none; }
@@ -26,6 +42,7 @@
         .pred-items { font-size: 0.85em; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; max-height: 200px; overflow-y: auto; }
         .pred-item { display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding: 5px 0; align-items: center; }
     </style>
+
 </head>
 <body style="display: none;" :style="isReady ? 'display: block;' : ''" x-data="adminApp()" x-init="initData()">
     <main class="container">

@@ -8,6 +8,9 @@ import jdatetime
 import openpyxl
 import requests
 import uvicorn
+from fastapi.responses import FileResponse
+from difflib import SequenceMatcher
+
 
 from fastapi import FastAPI, Depends, HTTPException, Request, File, UploadFile
 from fastapi.templating import Jinja2Templates
@@ -59,40 +62,71 @@ TEAM_NAME_MAPPING = {
     "نیوزیلند": "New Zealand", 
     "فرانسه": "France", 
     "سنگال": "Senegal", "عربستان": "Saudi Arabia", "اروگوئه": "Uruguay", "مکزیک": "Mexico", "کره جنوبی": "South Korea", "کانادا": "Canada", "قطر": "Qatar", "آمریکا": "USA", "هائیتی": "Haiti", "برزیل": "Brazil", "استرالیا": "Australia", "آلمان": "Germany", "هلند": "Netherlands", "ساحل عاج": "Ivory Coast", "سوئد": "Sweden", "اسپانیا": "Spain", "اسپانیای": "Spain", "بلژیک": "Belgium", "عراق": "Iraq", "آرژانتین": "Argentina", "اتریش": "Austria", "پرتغال": "Portugal", "انگلیس": "England", "غنا": "Ghana", "ازبکستان": "Uzbekistan", "جمهوری چک": "Czech Republic", "سوئیس": "Switzerland", "اسکاتلند": "Scotland", "ترکیه": "Turkey", "اکوادور": "Ecuador", "تونس": "Tunisia", "نروژ": "Norway", "اردن": "Jordan", "پاناما": "Panama", "کلمبیا": "Colombia", "آفریقای جنوبی": "South Africa", "بوسنی و هرزگوین": "Bosnia and Herzegovina", "مراکش": "Morocco", "پاراگوئه": "Paraguay", "کوراسائو": "Curacao", "ژاپن": "Japan", "مصر": "Egypt", "کیپ ورد": "Cape Verde", "الجزایر": "Algeria", "جمهوری کنگو": "Congo", "کرواسی": "Croatia" } 
+def is_team_match(db_team_en, api_team_name):
+    """تابع کمکی برای تشخیص شباهت دو نام حتی در صورت وجود پسوند و پیشوند"""
+    if not db_team_en or not api_team_name: 
+        return False
+    
+    db_team = db_team_en.lower().strip()
+    api_team = str(api_team_name).lower().strip()
+    
+    # حالت اول: نام یکی دقیقاً در دل دیگری باشد (مثل iran در iran (islamic republic))
+    if db_team in api_team or api_team in db_team:
+        return True
+        
+    # حالت دوم: شباهت املایی بالای ۷۵ درصد باشد
+    ratio = SequenceMatcher(None, db_team, api_team).ratio()
+    return ratio >= 0.75
+
 def fetch_and_update_from_api(db_session: Session, target_date_str: str):
     """
-    دریافت نتایج از API و آپدیت خودکار دیتابیس
+    دریافت نتایج از API-Football و آپدیت خودکار دیتابیس
     فرمت ورودی: YYYY-MM-DD
     """
     url = f"https://v3.football.api-sports.io/fixtures?date={target_date_str}"
     headers = {'x-apisports-key': API_SPORTS_KEY}
     
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=60)
+        
+        # بررسی خطاهای مربوط به خود API (مثل اتمام اعتبار رایگان)
+        if response.status_code != 200:
+            return f"❌ خطای سرور API. کد خطا: {response.status_code}"
+            
         data = response.json()
         
+        # بررسی محدودیت درخواست‌های روزانه
+        if data.get('errors') and 'requests' in data['errors'].get('rateLimit', ''):
+            return "❌ محدودیت ۱۰۰ درخواست رایگان امروز شما در API-Football به پایان رسیده است."
+            
         if not data.get('response'):
-            return "❌ هیچ دیتایی برای این تاریخ یافت نشد یا محدودیت API پر شده است."
+            return "⚠️ هیچ مسابقه‌ای در این تاریخ در سرور جهانی یافت نشد."
             
         api_fixtures = data['response']
         updated_count = 0
         
+        # فقط بازی‌های پیش‌رو که در دیتابیس هستند را چک می‌کنیم
         pending_matches = db_session.query(db.Match).filter(db.Match.status == "upcoming").all()
         
         for match in pending_matches:
+            # تبدیل نام فارسی به انگلیسی از روی دیکشنری
             home_en = TEAM_NAME_MAPPING.get(match.home_team.strip())
             away_en = TEAM_NAME_MAPPING.get(match.away_team.strip())
             
             if not home_en or not away_en:
                 continue 
                 
+            # جستجو در نتایج API
             for api_match in api_fixtures:
                 api_home = api_match['teams']['home']['name']
                 api_away = api_match['teams']['away']['name']
                 
-                if api_home == home_en and api_away == away_en:
+                # استفاده از تابع هوشمند برای مقایسه نام تیم‌ها
+                if is_team_match(home_en, api_home) and is_team_match(away_en, api_away):
                     status_short = api_match['fixture']['status']['short']
                     
+                    # کدهای پایان بازی در API-Football: 
+                    # FT (تمام وقت)، AET (پایان وقت اضافه)، PEN (پایان پنالتی)
                     if status_short in ['FT', 'PEN', 'AET']:
                         match.actual_home_goals = api_match['goals']['home']
                         match.actual_away_goals = api_match['goals']['away']
@@ -102,18 +136,22 @@ def fetch_and_update_from_api(db_session: Session, target_date_str: str):
                         db_session.commit()
                         calculate_leaderboard_data(db_session)
                         
+                        # ارسال کارنامه کاربران به بله
                         try:
                             msg_text = generate_bale_summary_message(db_session, match.id)
                             if msg_text: 
                                 send_bale_notification(msg_text)
                         except Exception as e:
                             print(f"Bale API error: {e}")
-                    break 
+                            
+                    break # وقتی بازی پیدا شد، حلقه جستجو برای این بازی را بشکن
                     
         return f"✅ سینک با موفقیت انجام شد. {updated_count} مسابقه ثبت و جدول آپدیت گردید."
         
+    except requests.exceptions.Timeout:
+        return "❌ خطای Timeout: سرور خارجی در زمان مناسب پاسخ نداد."
     except Exception as e:
-        return f"❌ خطای ارتباط با سرور خارجی: {e}"
+        return f"❌ خطای غیرمنتظره در ارتباط با API: {str(e)}"
 
 # 🌟 تابع ارسال پیام (همراه با سیستم دیباگ و پردازش دکمه‌ها)
 def send_bale_notification(message_text: str, target_chat_id=None, reply_markup=None):
@@ -212,8 +250,15 @@ scheduler.add_job(check_iran_nz_match, 'interval', minutes=5)
 scheduler.add_job(check_finished_matches_prompt, 'interval', minutes=5)
 scheduler.start()
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+# خط تعریف اپلیکیشن
+app = FastAPI(title="سیستم پیش‌بینی فوتبال")
+
+# 🌟 این خط احتمالاً پاک شده است، حتماً باید زیر app باشد:
+templates = Jinja2Templates(directory="templates")
+
+# کدهای استارت‌آپ
+@app.on_event("startup")
+def startup_db_check():
     db.Base.metadata.create_all(bind=db.engine)
     with db.engine.begin() as conn:
         try: 
@@ -226,10 +271,16 @@ async def lifespan(app: FastAPI):
             conn.execute(text("UPDATE users SET username = name WHERE username IS NULL;"))
         except Exception: 
             pass
-    yield
 
-app = FastAPI(title="سیستم پیش‌بینی فوتبال", lifespan=lifespan)
-templates = Jinja2Templates(directory="templates")
+# کدهای PWA که قبلا اضافه کردیم
+@app.get("/manifest.json", include_in_schema=False)
+def get_manifest():
+    return FileResponse("static/manifest.json", media_type="application/json")
+
+@app.get("/sw.js", include_in_schema=False)
+def get_service_worker():
+    return FileResponse("static/sw.js", media_type="application/javascript")
+
 
 def get_db():
     db_session = db.SessionLocal()
@@ -512,6 +563,13 @@ def set_prize(total_prize: float, db_session: Session = Depends(get_db)):
         db_session.add(db.SystemSetting(key="total_prize", value=str(total_prize)))
     db_session.commit()
     return {"status": "success"}
+
+@app.get("/test-api/{target_date}")
+def test_api_local(target_date: str, db_session: Session = Depends(get_db)):
+    # فرمت تاریخ باید حتما به شکل YYYY-MM-DD باشد
+    result = fetch_and_update_from_api(db_session, target_date)
+    return {"message": result}
+
 
 # 🌟 روت جدید برای دانلود امن دیتابیس
 @app.get("/download-backup/{secret_password}")

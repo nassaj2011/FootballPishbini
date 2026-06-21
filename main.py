@@ -41,10 +41,11 @@ USER_MAPPING = {
     "Amir_Rainbow": "امیر آقا عباسی"
 }
 
-
 def get_persian_name(username):
     if not username: return "کاربر ناشناس"
-    return USER_MAPPING.get(username, username)
+    # این خط کاری می‌کند که کوچکی یا بزرگی حروف تاثیری در پیدا کردن نام نداشته باشد
+    mapping_lower = {k.lower(): v for k, v in USER_MAPPING.items()}
+    return mapping_lower.get(username.lower().strip(), username)
 
 # --- تنظیمات اتصال به بله ---
 BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
@@ -178,8 +179,8 @@ def send_user_main_menu(chat_id: str):
                 {"text": "🏆 جدول رده‌بندی لیگ", "callback_data": "user_leaderboard"}
             ],
             [
-                # 🌟 دکمه جدید شفاف‌سازی اضافه شد
-                {"text": "🕵️‍♂️ اتاق شفاف‌سازی رقبا (۳ بازی بعدی)", "callback_data": "user_rivals_preds"}
+                {"text": "🕵️‍♂️ اتاق شفاف‌سازی (۳ بازی بعدی)", "callback_data": "user_rivals_preds"},
+                {"text": "👥 کارنامه رقبا (همه بازی‌ها)", "callback_data": "user_list_public"}
             ],
             [
                 {"text": "📜 قوانین و امتیازدهی", "callback_data": "user_rules"}
@@ -865,80 +866,88 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
     return {"status": "success"}
 
 # 🌟 تابع مرکزی دریافت اطلاعات (وب‌هوک) شامل پردازش کلیک روی دکمه‌های شیشه‌ای
-# 🌟 تابع مرکزی دریافت اطلاعات (وب‌هوک) شامل پردازش کلیک روی دکمه‌های شیشه‌ای
 @app.post("/bale-webhook")
 async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
     try:
         data = await request.json()
+        
+        # قالب دکمه بازگشت به منوی اصلی
+        back_markup = {
+            "inline_keyboard": [[{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_to_main"}]]
+        }
        
-        # ۱. پردازش کلیک روی دکمه‌های شیشه‌ای (Callback Queries)
+        # ۱. پردازش کلیک روی دکمه‌های شیشه‌ای
         if "callback_query" in data:
             callback_data = data["callback_query"]["data"]
             chat_id = str(data["callback_query"]["message"]["chat"]["id"])
             cb_id = data["callback_query"]["id"]
            
-            # ارسال پاسخ کوتاه به سرور بله تا لودینگ روی دکمه برداشته شود
-            try:
-                requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/answerCallbackQuery", json={"callback_query_id": cb_id}, timeout=5)
-            except Exception:
-                pass
+            try: requests.post(f"https://tapi.bale.ai/bot{BALE_TOKEN}/answerCallbackQuery", json={"callback_query_id": cb_id}, timeout=5)
+            except: pass
 
-            if callback_data == "user_leaderboard":
+            if callback_data == "back_to_main":
+                send_user_main_menu(chat_id)
+
+            elif callback_data == "user_leaderboard":
                 lb_data = calculate_leaderboard_data(db_session)
                 msg = "🏆 **جدول رده‌بندی لحظه‌ای لیگ:**\n\n"
                 for row in lb_data:
-                    msg += f"🏅 {row['rank']} - {row['username']} | {row['score']} امتیاز\n"
-                send_bale_notification(msg, target_chat_id=chat_id)
+                    msg += f"🏅 {row['rank']} - {get_persian_name(row['username'])} | {row['score']} امتیاز\n"
+                send_bale_notification(msg, target_chat_id=chat_id, reply_markup=back_markup)
            
             elif callback_data == "user_upcoming_matches":
                 matches = db_session.query(db.Match).filter(db.Match.status == "upcoming").all()
                 if not matches:
-                    send_bale_notification("در حال حاضر هیچ مسابقه‌ای برای پیش‌بینی تعریف نشده است.", target_chat_id=chat_id)
+                    send_bale_notification("در حال حاضر هیچ مسابقه‌ای برای پیش‌بینی تعریف نشده است.", target_chat_id=chat_id, reply_markup=back_markup)
                 else:
-                    msg = "⚽️ **لیست مسابقات پیش‌رو:**\n*(برای ثبت پیش‌بینی باید وارد سایت شوید)*\n\n"
-                    for m in matches:
-                        msg += f"⚔️ {m.home_team} - {m.away_team}\n"
-                    send_bale_notification(msg, target_chat_id=chat_id)
+                    msg = "⚽️ **لیست مسابقات پیش‌رو:**\n*(برای ثبت فرم وارد سایت شوید)*\n\n"
+                    for m in matches: msg += f"⚔️ {m.home_team} - {m.away_team}\n"
+                    send_bale_notification(msg, target_chat_id=chat_id, reply_markup=back_markup)
             
-            # 🌟 پردازش دکمه جدید اتاق شفاف‌سازی
+            # 🌟 منوی جدید: دریافت لیست رقبا برای کاربران عادی
+            elif callback_data == "user_list_public":
+                users = db_session.query(db.User).all()
+                msg_lines = ["👥 **لیست شرکت‌کنندگان:**\nبرای دیدن پیش‌بینی‌های هر شخص در همه بازی‌ها، روی لینک مقابل نام او کلیک کنید:\n\n"]
+                for u in users:
+                    msg_lines.append(f"👤 {get_persian_name(u.username if u.username else u.name)} 👈 /{u.id}r")
+                
+                curr_msg = ""
+                for line in msg_lines:
+                    if len(curr_msg) + len(line) > 3500:
+                        send_bale_notification(curr_msg, target_chat_id=chat_id)
+                        curr_msg = line + "\n"
+                    else: curr_msg += line + "\n"
+                if curr_msg:
+                    send_bale_notification(curr_msg, target_chat_id=chat_id, reply_markup=back_markup)
+
             elif callback_data == "user_rivals_preds":
                 upcoming_matches = db_session.query(db.Match).filter(db.Match.status == "upcoming").order_by(db.Match.timestamp.asc()).limit(3).all()
-                
                 if not upcoming_matches:
-                    send_bale_notification("در حال حاضر مسابقه پیش‌رویی برای نمایش وجود ندارد.", target_chat_id=chat_id)
+                    send_bale_notification("مسابقه پیش‌رویی برای نمایش وجود ندارد.", target_chat_id=chat_id, reply_markup=back_markup)
                 else:
                     msg_lines = ["🕵️‍♂️ **اتاق شفاف‌سازی: پیش‌بینی رقبا**\n"]
                     for m in upcoming_matches:
                         msg_lines.append(f"⚔️ **{m.home_team} - {m.away_team}**")
                         preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == m.id).all()
-                        
-                        if not preds:
-                            msg_lines.append("🔸 هنوز کسی فرم این بازی را پر نکرده است.\n")
+                        if not preds: msg_lines.append("🔸 هنوز کسی فرم پر نکرده است.\n")
                         else:
                             for p, u in preds:
-                                dn = get_persian_name(u.username if u.username else u.name)
                                 stime = getattr(p, 'submit_time', 'نامشخص')
-                                msg_lines.append(f"👤 {dn}: ({p.predicted_home_goals} - {p.predicted_away_goals}) 🕒 {stime}")
+                                msg_lines.append(f"👤 {get_persian_name(u.username if u.username else u.name)}: ({p.predicted_home_goals} - {p.predicted_away_goals}) 🕒 {stime}")
                             msg_lines.append("\n")
                     
-                    # ارسال چند تکه‌ای برای جلوگیری از ارور محدودیت متن
                     curr_msg = ""
                     for line in msg_lines:
                         if len(curr_msg) + len(line) > 3500:
                             send_bale_notification(curr_msg, target_chat_id=chat_id)
                             curr_msg = line + "\n"
-                        else:
-                            curr_msg += line + "\n"
+                        else: curr_msg += line + "\n"
                     if curr_msg:
-                        send_bale_notification(curr_msg, target_chat_id=chat_id)
+                        send_bale_notification(curr_msg, target_chat_id=chat_id, reply_markup=back_markup)
 
             elif callback_data == "user_rules":
-                rules_msg = "📜 **قوانین و نحوه امتیازدهی:**\n\n" \
-                            "✅ **۳ امتیاز:** اگر تعداد گل‌های هر دو تیم را کاملاً درست حدس بزنید.\n" \
-                            "✅ **۲ امتیاز:** اگر فقط اختلاف گل‌ها (تفاضل) یا مساوی بودن را درست حدس بزنید.\n" \
-                            "✅ **۱ امتیاز:** اگر فقط تشخیص دهید کدام تیم برنده می‌شود.\n" \
-                            "❌ **۰ امتیاز:** پیش‌بینی کاملاً اشتباه."
-                send_bale_notification(rules_msg, target_chat_id=chat_id)
+                rules_msg = "📜 **قوانین و نحوه امتیازدهی:**\n\n✅ ۳ امتیاز: حدس دقیق\n✅ ۲ امتیاز: تفاضل درست\n✅ ۱ امتیاز: تشخیص برنده\n❌ ۰ امتیاز: اشتباه"
+                send_bale_notification(rules_msg, target_chat_id=chat_id, reply_markup=back_markup)
            
             return {"status": "ok"}
 
@@ -947,37 +956,12 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
             chat_id = str(data["message"]["chat"]["id"])
             text = data["message"].get("text", "").strip()
 
-            # نمایش منوی اصلی به هر کاربری که وارد ربات می‌شود (بدون نیاز به دسترسی ادمین)
             if text in ["/start", "شروع", "منو", "/menu"]:
                 send_user_main_menu(chat_id)
                 return {"status": "ok"}
 
-            # ---- محدودیت دسترسی به دستورات مدیریتی ----
-            if chat_id != ADMIN_BALE_ID:
-                send_bale_notification(f"⛔️ دسترسی غیرمجاز!\nآیدی‌ای که سرور از شما دریافت کرد: {chat_id}\nآیدی‌ای که در کد تنظیم شده است: {ADMIN_BALE_ID}", target_chat_id=chat_id)
-                return {"status": "unauth"}
-
-            # دستورات ادمین
-            # 🌟 ارتقای دستور /users برای نمایش ID
-            if text == "/users":
-                users = db_session.query(db.User).all()
-                msg_lines = ["👥 **لیست تمام کاربران سیستم:**\n"]
-               
-                for u in users:
-                    msg_lines.append(f"🆔 ID: {u.id} | 👤 {u.name} ({u.username}) | ⭐️ {u.score} امتیاز\n📥 پیش‌بینی‌ها: /{u.id}r\n-------------------")
-               
-                curr_msg = ""
-                for line in msg_lines:
-                    if len(curr_msg) + len(line) > 3500:
-                        send_bale_notification(curr_msg, target_chat_id=chat_id)
-                        curr_msg = line + "\n"
-                    else:
-                        curr_msg += line + "\n"
-                if curr_msg:
-                    send_bale_notification(curr_msg, target_chat_id=chat_id)
-
-            # 🌟 دستور هوشمند برای استخراج پیش‌بینی‌های یک کاربر با فرمت /12r
-            elif text.startswith("/") and text.endswith("r") and len(text) > 2 and text[1:-1].isdigit():
+            # 🌟 آزادسازی دستور کارنامه (/{id}r) برای همه کاربران
+            if text.startswith("/") and text.endswith("r") and len(text) > 2 and text[1:-1].isdigit():
                 user_id = int(text[1:-1])
                 user = db_session.query(db.User).filter(db.User.id == user_id).first()
                
@@ -986,40 +970,55 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                     return {"status": "ok"}
                    
                 preds = db_session.query(db.Prediction).filter(db.Prediction.user_id == user.id).all()
-                msg_lines = [f"📊 **کارنامه پیش‌بینی‌های {user.name} ({user.username})**", f"⭐️ امتیاز کل کسب‌شده: {user.score}\n"]
+                msg_lines = [f"📊 **کارنامه پیش‌بینی‌های {get_persian_name(user.username if user.username else user.name)}**", f"⭐️ امتیاز کل کسب‌شده: {user.score}\n"]
                
-                if not preds:
-                    msg_lines.append("⚠️ هنوز هیچ پیش‌بینی‌ای ثبت نکرده است.")
+                if not preds: msg_lines.append("⚠️ هنوز هیچ پیش‌بینی‌ای ثبت نکرده است.")
                 else:
                     for p in preds:
                         match = db_session.query(db.Match).filter(db.Match.id == p.match_id).first()
                         if match:
                             status_text = f" | واقعی: {match.actual_home_goals} - {match.actual_away_goals}" if match.status == "finished" else " (⏳ آینده)"
-                            msg_lines.append(f"⚽️ {match.home_team} - {match.away_team}\n🎯 حدس: ({p.predicted_home_goals} - {p.predicted_away_goals}){status_text}\n")
+                            stime = getattr(p, 'submit_time', 'نامشخص')
+                            msg_lines.append(f"⚽️ {match.home_team} - {match.away_team}\n🎯 حدس: ({p.predicted_home_goals} - {p.predicted_away_goals}){status_text}\n🕒 ثبت: {stime}\n")
                
                 curr_msg = ""
                 for line in msg_lines:
                     if len(curr_msg) + len(line) > 3500:
                         send_bale_notification(curr_msg, target_chat_id=chat_id)
                         curr_msg = line + "\n"
-                    else:
-                        curr_msg += line + "\n"
+                    else: curr_msg += line + "\n"
                 if curr_msg:
-                    send_bale_notification(curr_msg, target_chat_id=chat_id)
+                    send_bale_notification(curr_msg, target_chat_id=chat_id, reply_markup=back_markup)
+                return {"status": "ok"}
+
+            # ---- محدودیت دسترسی به دستورات مدیریتی ----
+            if chat_id != ADMIN_BALE_ID:
+                send_bale_notification(f"⛔️ این یک دستور مدیریتی است و دسترسی شما مجاز نیست.", target_chat_id=chat_id)
+                return {"status": "unauth"}
+
+            # ----- کدهای ادمین -----
+            if text == "/users":
+                users = db_session.query(db.User).all()
+                msg_lines = ["👥 **لیست تمام کاربران سیستم:**\n"]
+                for u in users: msg_lines.append(f"🆔 ID: {u.id} | 👤 {u.name} ({u.username}) | ⭐️ {u.score} امتیاز\n-------------------")
+               
+                curr_msg = ""
+                for line in msg_lines:
+                    if len(curr_msg) + len(line) > 3500:
+                        send_bale_notification(curr_msg, target_chat_id=chat_id)
+                        curr_msg = line + "\n"
+                    else: curr_msg += line + "\n"
+                if curr_msg: send_bale_notification(curr_msg, target_chat_id=chat_id)
 
             elif text.startswith("/ap "):
-                # الگو: /ap 20260616
                 parts = text.split(" ")
                 if len(parts) == 2 and len(parts[1]) == 8 and parts[1].isdigit():
                     raw_date = parts[1]
-                    # تبدیل خودکار 20260616 به 2026-06-16
                     target_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:]}"
-                   
                     send_bale_notification(f"⏳ در حال ارتباط با سرور جهانی برای نتایج {target_date}...", target_chat_id=chat_id)
                     result_msg = fetch_and_update_from_api(db_session, target_date)
                     send_bale_notification(result_msg, target_chat_id=chat_id)
-                else:
-                    send_bale_notification("❌ فرمت اشتباه است. لطفاً تاریخ را ۸ رقمی و بدون خط تیره وارد کنید:\nمثال: `/ap 20260616`", target_chat_id=chat_id)
+                else: send_bale_notification("❌ فرمت اشتباه است. لطفاً تاریخ را ۸ رقمی و بدون خط تیره وارد کنید:\nمثال: `/ap 20260616`", target_chat_id=chat_id)
            
             elif text == "/live":
                 today_str = datetime.now().strftime("%Y-%m-%d")
@@ -1030,24 +1029,18 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
             elif text == "/table" or text == "/leaderboard":
                 lb_data = calculate_leaderboard_data(db_session)
                 msg = "🏆 **جدول رده‌بندی کل مسابقات:**\n\n"
-                for row in lb_data:
-                    msg += f"🏅 رتبه {row['rank']} | **{row['username']}** | ⭐️ {row['score']} امتیاز\n"
+                for row in lb_data: msg += f"🏅 رتبه {row['rank']} | **{get_persian_name(row['username'])}** | ⭐️ {row['score']} امتیاز\n"
                 send_bale_notification(msg, target_chat_id=chat_id)
 
             elif text == "/matches":
                 matches = db_session.query(db.Match).all()
-                if not matches:
-                    send_bale_notification("❌ هیچ مسابقه‌ای ثبت نشده است.", target_chat_id=chat_id)
+                if not matches: send_bale_notification("❌ هیچ مسابقه‌ای ثبت نشده است.", target_chat_id=chat_id)
                 else:
                     from collections import defaultdict
                     grouped_matches = defaultdict(list)
-                   
-                    # دسته‌بندی بازی‌ها بر اساس نام گروه
                     for m in matches:
                         group_n = m.group_name if m.group_name else "نامشخص"
                         grouped_matches[group_n].append(m)
-                   
-                    # ارسال هر گروه در یک پیام مجزا
                     for group_name, m_list in grouped_matches.items():
                         msg = f"🏆 **بازی‌های {group_name}:**\n\n"
                         for m in m_list:
@@ -1055,133 +1048,86 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                             msg += f"⚔️ **{m.home_team} - {m.away_team}**\n🆔 ID: {m.id} | {status_text}\n📊 /mp_{m.id} | ⚠️ /absent_{m.id}\n-------------------\n"
                         send_bale_notification(msg, target_chat_id=chat_id)
 
-
             elif text.startswith("/mp_"):
                 try:
                     m_id = int(text.replace("/mp_", "").strip())
                     match = db_session.query(db.Match).filter(db.Match.id == m_id).first()
-                    if not match:
-                        return {"status": "ok"}
+                    if not match: return {"status": "ok"}
                     preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == m_id).all()
                     msg = f"📊 **پیش‌بینی‌های بازی [{match.home_team} - {match.away_team}]:**\n\n"
-                    for p, u in preds:
-                        msg += f"👤 {u.username}: ({p.predicted_home_goals} - {p.predicted_away_goals})\n"
+                    for p, u in preds: msg += f"👤 {u.username}: ({p.predicted_home_goals} - {p.predicted_away_goals})\n"
                     send_bale_notification(msg if preds else "پیش‌بینی ثبت نشده است.", target_chat_id=chat_id)
-                except ValueError:
-                    pass
+                except ValueError: pass
 
             elif text.startswith("/absent_"):
                 try:
                     m_id = int(text.replace("/absent_", "").strip())
                     match = db_session.query(db.Match).filter(db.Match.id == m_id).first()
-                    if not match:
-                        return {"status": "ok"}
+                    if not match: return {"status": "ok"}
                     preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m_id).all()
                     predicted_user_ids = [p.user_id for p in preds]
                     all_users = db_session.query(db.User).all()
                     missing_users = [u for u in all_users if u.id not in predicted_user_ids]
                     msg = f"⚠️ **غایبین فرم بازی [{match.home_team} - {match.away_team}]:**\n\n"
-                    for u in missing_users:
-                        msg += f"👤 @{u.username}\n"
+                    for u in missing_users: msg += f"👤 @{u.username}\n"
                     send_bale_notification(msg if missing_users else "✅ همه پیش‌بینی کرده‌اند.", target_chat_id=chat_id)
-                except ValueError:
-                    pass
+                except ValueError: pass
 
             elif text.startswith("/rep"):
                 try:
-                    # استخراج شماره بازی بدون خط تیره (مثل /rep12)
                     m_id = int(text.replace("/rep", "").strip())
                     match = db_session.query(db.Match).filter(db.Match.id == m_id).first()
                     if not match:
                         send_bale_notification("❌ بازی یافت نشد.", target_chat_id=chat_id)
                         return {"status": "ok"}
-                   
                     if match.status != "finished":
                         send_bale_notification("⚠️ این بازی هنوز تمام نشده است و نتیجه‌ای برای کالبدشکافی ندارد.", target_chat_id=chat_id)
                         return {"status": "ok"}
 
-                    # --- بخش اول: ساخت جدول لایو ---
                     lb_data = calculate_leaderboard_data(db_session)
                     caption_parts = ["🏆 **جدول رده‌بندی لایو:**\n"]
-                   
                     for row in lb_data:
                         medal = "🥇" if row['rank'] == 1 else "🥈" if row['rank'] == 2 else "🥉" if row['rank'] == 3 else "🏅"
-                        # 🌟 عبور دادن نام کاربری از دیکشنری برای نمایش محترمانه
-                        display_name = get_persian_name(row['username'] if row['username'] else row['name'])
-                        caption_parts.append(f"{medal} رتبه {row['rank']} | {display_name} | ⭐️ {row['score']} امتیاز")
-                   
+                        caption_parts.append(f"{medal} رتبه {row['rank']} | {get_persian_name(row['username'] if row['username'] else row['name'])} | ⭐️ {row['score']} امتیاز")
+                    
                     caption_parts.append("\n➖➖➖➖➖➖➖➖➖➖")
-
-                    # --- بخش دوم: کالبدشکافی امتیازات بازی ---
                     predictions = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == m_id).all()
                     p_3, p_2, p_1, p_0 = [], [], [], []
-                    ah = match.actual_home_goals
-                    aa = match.actual_away_goals
+                    ah, aa = match.actual_home_goals, match.actual_away_goals
                    
                     for pred, user in predictions:
-                        ph = pred.predicted_home_goals
-                        pa = pred.predicted_away_goals
-                        display_name = get_persian_name(user.username if user.username else user.name)
-                       
+                        ph, pa = pred.predicted_home_goals, pred.predicted_away_goals
+                        dn = get_persian_name(user.username if user.username else user.name)
                         if ah is not None and aa is not None:
-                            if ph == ah and pa == aa:
-                                p_3.append(display_name)
-                            elif (ph - pa) == (ah - aa):
-                                p_2.append(display_name)
-                            elif (ph > pa and ah > aa) or (ph < pa and ah < aa):
-                                p_1.append(display_name)
-                            else:
-                                p_0.append(display_name)
-                   
-                    str_3 = "، ".join(p_3) if p_3 else "هیچ‌کس"
-                    str_2 = "، ".join(p_2) if p_2 else "هیچ‌کس"
-                    str_1 = "، ".join(p_1) if p_1 else "هیچ‌کس"
-                    str_0 = "، ".join(p_0) if p_0 else "هیچ‌کس"
+                            if ph == ah and pa == aa: p_3.append(dn)
+                            elif (ph - pa) == (ah - aa): p_2.append(dn)
+                            elif (ph > pa and ah > aa) or (ph < pa and ah < aa): p_1.append(dn)
+                            else: p_0.append(dn)
                    
                     caption_parts.append(f"🏁 **عملکرد کاربران در بازی شماره {m_id} ({match.home_team} {ah} - {aa} {match.away_team}):**\n")
-                    caption_parts.append(f"🎯 ۳امتیاز کامل: {str_3} | ۲امتیازی : {str_2} | ۱ امتیازی: {str_1} | ❌ بدون امتیاز: {str_0}\n")
+                    caption_parts.append(f"🎯 ۳امتیاز کامل: {'، '.join(p_3) if p_3 else 'هیچ‌کس'} | ۲امتیازی : {'، '.join(p_2) if p_2 else 'هیچ‌کس'} | ۱ امتیازی: {'، '.join(p_1) if p_1 else 'هیچ‌کس'} | ❌ بدون امتیاز: {'، '.join(p_0) if p_0 else 'هیچ‌کس'}\n")
                     caption_parts.append("➖➖➖➖➖➖➖➖➖➖")
                    
-                    # --- بخش سوم: رادار بازی بعدی ---
                     next_match = db_session.query(db.Match).filter(db.Match.status == "upcoming").order_by(db.Match.timestamp.asc()).first()
                     if next_match:
-                        time_left_str = "نامشخص"
-                        if next_match.timestamp:
-                            time_diff = datetime.fromtimestamp(next_match.timestamp) - datetime.now()
-                            ts_secs = int(time_diff.total_seconds())
-                            if ts_secs > 0:
-                                h, r = divmod(ts_secs, 3600)
-                                m = r // 60
-                                time_left_str = f"{h} ساعت و {m} دقیقه"
-                            else:
-                                time_left_str = "زمان ثبت پیش‌بینی تمام شده!"
-
-                        caption_parts.append(f"🔜 **نبرد بعدی:** {next_match.home_team} 🆚 {next_match.away_team}")
-                        caption_parts.append(f"⏳ **زمان تا قفل فرم:** {time_left_str}\n")
-                        caption_parts.append(f"👀 **پیش‌بینی‌های ثبت‌شده:**")
+                        ts_secs = int((datetime.fromtimestamp(next_match.timestamp) - datetime.now()).total_seconds()) if next_match.timestamp else 0
+                        time_left_str = f"{ts_secs // 3600} ساعت و {(ts_secs % 3600) // 60} دقیقه" if ts_secs > 0 else "زمان تمام شده!"
+                        caption_parts.append(f"🔜 **نبرد بعدی:** {next_match.home_team} 🆚 {next_match.away_team}\n⏳ **زمان تا قفل فرم:** {time_left_str}\n👀 **پیش‌بینی‌ها:**")
                        
                         next_preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == next_match.id).all()
-                        predicted_user_ids = []
+                        p_ids = []
                         for npred, nuser in next_preds:
-                            dn = get_persian_name(nuser.username if nuser.username else nuser.name)
-                            caption_parts.append(f"👤 {dn}: {next_match.home_team} {npred.predicted_home_goals} - {npred.predicted_away_goals} {next_match.away_team}")
-                            predicted_user_ids.append(nuser.id)
+                            caption_parts.append(f"👤 {get_persian_name(nuser.username if nuser.username else nuser.name)}: {next_match.home_team} {npred.predicted_home_goals} - {npred.predicted_away_goals} {next_match.away_team}")
+                            p_ids.append(nuser.id)
                            
-                        all_users = db_session.query(db.User).all()
-                        missing_users = [u for u in all_users if u.id not in predicted_user_ids]
+                        missing_users = [u for u in db_session.query(db.User).all() if u.id not in p_ids]
                         if missing_users:
-                            caption_parts.append(f"\n⚠️ **هشدار به غایبین! تا دیر نشده فرم را پر کنید:**")
-                            missing_names = [f"@{get_persian_name(u.username if u.username else u.name)}" for u in missing_users]
-                            caption_parts.append("، ".join(missing_names))
+                            caption_parts.append(f"\n⚠️ **هشدار به غایبین!**\n" + "، ".join([f"@{get_persian_name(u.username if u.username else u.name)}" for u in missing_users]))
 
                     caption_parts.append(f"\n👇 **همین الان به سایت مراجعه و پیش‌بینی‌ات رو ثبت کن!**")
-                   
-                    final_caption = "\n".join(caption_parts)
-                   
-                    send_bale_notification(final_caption, target_chat_id=chat_id)
-
+                    send_bale_notification("\n".join(caption_parts), target_chat_id=chat_id)
                 except ValueError:
-                    send_bale_notification("❌ فرمت دستور اشتباه است. مثال: /rep12", target_chat_id=chat_id)
+                    send_bale_notification("❌ فرمت دستور اشتباه است.", target_chat_id=chat_id)
 
             elif text.startswith("/set_"):
                 parts = text.split("_")
@@ -1193,21 +1139,17 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                             send_bale_notification("❌ بازی یافت نشد.", target_chat_id=chat_id)
                             return {"status": "ok"}
                        
-                        match.actual_home_goals = h_goals
-                        match.actual_away_goals = a_goals
-                        match.status = "finished"
+                        match.actual_home_goals, match.actual_away_goals, match.status = h_goals, a_goals, "finished"
                         db_session.commit()
                         calculate_leaderboard_data(db_session)
                        
                         ch_msg = generate_bale_summary_message(db_session, match.id)
-                        if ch_msg:
-                            send_bale_notification(ch_msg)
-                       
-                        send_bale_notification(f"✅ نتیجه با موفقیت ثبت و گزارش ارسال شد.", target_chat_id=chat_id)
+                        if ch_msg: send_bale_notification(ch_msg)
+                        send_bale_notification(f"✅ نتیجه با موفقیت ثبت شد.", target_chat_id=chat_id)
                     except ValueError:
                         send_bale_notification("❌ قالب ورودی گل‌ها معتبر نیست.", target_chat_id=chat_id)
             else:
-                help_msg = "🤖 **سلام مدیر عزیز! پنل فرمان سریع:**\n\n🔹 /users ⟶ لیست کاربران\n🔹 /{id}r ⟶ مشاهده کارنامه کاربر\n🔹 /matches ⟶ لیست بازی‌ها\n🔹 /table ⟶ جدول رده‌بندی\n\n✍️ فرمت ثبت فوری تک بازی:\n`/set_[match_id]_[home]_[away]`\nمثال: `/set_5_2_1`"
+                help_msg = "🤖 **پنل فرمان سریع ادمین:**\n\n🔹 /users ⟶ لیست کاربران\n🔹 /{id}r ⟶ مشاهده کارنامه کاربر\n🔹 /matches ⟶ لیست بازی‌ها\n🔹 /table ⟶ جدول رده‌بندی\n\n✍️ فرمت ثبت فوری تک بازی:\n`/set_[match_id]_[home]_[away]`\nمثال: `/set_5_2_1`"
                 send_bale_notification(help_msg, target_chat_id=chat_id)
 
         return {"status": "ok"}

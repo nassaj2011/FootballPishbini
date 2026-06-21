@@ -66,6 +66,7 @@ class Prediction(Base):
     match_id = Column(Integer, ForeignKey("matches.id"))
     predicted_home_goals = Column(Integer)
     predicted_away_goals = Column(Integer)
+    submit_time = Column(String, default="نامشخص") # 🌟 این خط جا مانده بود!
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

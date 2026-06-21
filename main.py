@@ -779,6 +779,7 @@ def bulk_revert_matches(req: BulkDeleteRequest, db_session: Session = Depends(ge
     calculate_leaderboard_data(db_session)
     return {"status": "success"}
 
+# 🌟 تابع ثبت پیش‌بینی (فقط یک‌بار باید در کدها باشد)
 @app.post("/predictions/")
 def create_prediction(request: Request, user_id: int, match_id: int, home_goals: int, away_goals: int, db_session: Session = Depends(get_db)):
     match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
@@ -789,13 +790,11 @@ def create_prediction(request: Request, user_id: int, match_id: int, home_goals:
     if datetime.now(pytz.timezone("Asia/Tehran")).timestamp() >= (match.timestamp - 900):
         raise HTTPException(status_code=400, detail="مهلت ثبت پیش‌بینی تمام شده")
 
-
     user = db_session.query(db.User).filter(db.User.id == user_id).first()
     pred = db_session.query(db.Prediction).filter(db.Prediction.user_id == user_id, db.Prediction.match_id == match_id).first()
    
-    # 🌟 تغییر جدید: دریافت زمان دقیق ثبت فرم به وقت تهران
+    # دریافت زمان دقیق ثبت فرم به وقت تهران
     now_str = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
-
 
     if pred:
         pred.predicted_home_goals = home_goals

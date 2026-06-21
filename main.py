@@ -906,26 +906,58 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                 return {"status": "unauth"}
 
             # دستورات ادمین
+            # دستورات ادمین
             if text == "/users":
                 users = db_session.query(db.User).all()
-                msg = "👥 **لیست تمام کاربران سیستم:**\n\n"
+                msg_lines = ["👥 **لیست تمام کاربران سیستم:**\n"]
+                
                 for u in users: 
-                    msg += f"👤 {u.name} ({u.username}) | ⭐️ {u.score} امتیاز\n📥 پیش‌بینی‌ها: /userpreds_{u.username}\n-------------------\n"
-                send_bale_notification(msg, target_chat_id=chat_id)
+                    # 🌟 اضافه شدن آیدی کاربر و دستور جدید
+                    msg_lines.append(f"🆔 ID: {u.id} | 👤 {u.name} ({u.username}) | ⭐️ {u.score} امتیاز\n📥 پیش‌بینی‌ها: /{u.id}r\n-------------------")
+                
+                # 🌟 سیستم ارسال چندتکه‌ای پیام برای لیست‌های طولانی
+                curr_msg = ""
+                for line in msg_lines:
+                    if len(curr_msg) + len(line) > 3500:
+                        send_bale_notification(curr_msg, target_chat_id=chat_id)
+                        curr_msg = line + "\n"
+                    else:
+                        curr_msg += line + "\n"
+                if curr_msg:
+                    send_bale_notification(curr_msg, target_chat_id=chat_id)
 
-            elif text.startswith("/userpreds_"):
-                target_username = text.replace("/userpreds_", "").strip()
-                user = db_session.query(db.User).filter(db.User.username == target_username).first()
+            # 🌟 دستور هوشمند برای استخراج پیش‌بینی‌های یک کاربر با فرمت /12r
+            elif text.startswith("/") and text.endswith("r") and len(text) > 2 and text[1:-1].isdigit():
+                user_id = int(text[1:-1])
+                user = db_session.query(db.User).filter(db.User.id == user_id).first()
+                
                 if not user:
-                    send_bale_notification("❌ کاربر یافت نشد.", target_chat_id=chat_id)
+                    send_bale_notification("❌ کاربر با این آیدی یافت نشد.", target_chat_id=chat_id)
                     return {"status": "ok"}
+                    
                 preds = db_session.query(db.Prediction).filter(db.Prediction.user_id == user.id).all()
-                msg = f"📊 **پیش‌بینی‌های {user.username}:**\n\n"
-                for p in preds:
-                    match = db_session.query(db.Match).filter(db.Match.id == p.match_id).first()
-                    if match: 
-                        msg += f"⚽️ {match.home_team} - {match.away_team} ⟵ ({p.predicted_home_goals} - {p.predicted_away_goals})\n"
-                send_bale_notification(msg if preds else "هنوز پیش‌بینی ثبت نکرده است.", target_chat_id=chat_id)
+                msg_lines = [f"📊 **کارنامه پیش‌بینی‌های {user.name} ({user.username})**", f"⭐️ امتیاز کل کسب‌شده: {user.score}\n"]
+                
+                if not preds:
+                    msg_lines.append("⚠️ هنوز هیچ پیش‌بینی‌ای ثبت نکرده است.")
+                else:
+                    for p in preds:
+                        match = db_session.query(db.Match).filter(db.Match.id == p.match_id).first()
+                        if match:
+                            status_text = f" | واقعی: {match.actual_home_goals} - {match.actual_away_goals}" if match.status == "finished" else " (⏳ آینده)"
+                            msg_lines.append(f"⚽️ {match.home_team} - {match.away_team}\n🎯 حدس: ({p.predicted_home_goals} - {p.predicted_away_goals}){status_text}\n")
+                
+                # 🌟 سیستم ارسال چندتکه‌ای برای پیش‌بینی‌های طولانی
+                curr_msg = ""
+                for line in msg_lines:
+                    if len(curr_msg) + len(line) > 3500:
+                        send_bale_notification(curr_msg, target_chat_id=chat_id)
+                        curr_msg = line + "\n"
+                    else:
+                        curr_msg += line + "\n"
+                if curr_msg:
+                    send_bale_notification(curr_msg, target_chat_id=chat_id)
+
 
             elif text.startswith("/ap "):
                 # الگو: /ap 20260616

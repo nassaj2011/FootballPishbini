@@ -110,14 +110,21 @@
                             </div>
                             
                             <div class="score-inputs" style="display: flex; justify-content: center; gap: 5px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                                <label style="font-size: 0.8em; margin: 0; color: #ef4444; font-weight:bold; display: flex; align-items: center; gap: 4px;">
-                                    <input type="checkbox" x-model="match.markAsFinished" style="margin:0;"> پایان
-                                </label>
-                                <input type="number" min="0" x-model.number="match.actualHome" :disabled="!match.markAsFinished" style="background: white;">
-                                <span style="font-weight: bold; color: #94a3b8;">-</span>
-                                <input type="number" min="0" x-model.number="match.actualAway" :disabled="!match.markAsFinished" style="background: white;">
-                                <button @click="finishSingleMatch(match)" :disabled="!match.markAsFinished" style="background-color: #10b981; padding: 0 12px; margin: 0; height: 35px; border: none; font-size: 0.8em; border-radius: 6px; font-weight:bold;">ثبت</button>
-                            </div>
+    <label style="font-size: 0.8em; margin: 0; color: #ef4444; font-weight:bold; display: flex; align-items: center; gap: 4px;">
+        <input type="checkbox" x-model="match.markAsFinished" style="margin:0;"> پایان
+    </label>
+    <input type="number" min="0" x-model.number="match.actualHome" style="background: white;">
+    <span style="font-weight: bold; color: #94a3b8;">-</span>
+    <input type="number" min="0" x-model.number="match.actualAway" style="background: white;">
+    
+    <button @click="finishSingleMatch(match)" :disabled="!match.markAsFinished" style="background-color: #10b981; padding: 0 8px; margin: 0; height: 35px; border: none; font-size: 0.75em; border-radius: 6px; font-weight:bold;">ثبت نهایی</button>
+    
+    <button @click="sendLiveUpdate(match)" style="background-color: #f39c12; padding: 0 8px; margin: 0; height: 35px; border: none; font-size: 0.75em; border-radius: 6px; font-weight:bold; color: white;" title="ارسال گزارش زنده به کانال">⚽ گل زنده</button>
+</div>
+
+
+
+
                         </div>
                     </template>
                 </div>
@@ -431,12 +438,24 @@
                     .then(() => { alert(`ثبت شد.`); this.initData(); });
                 },
                 
-                bulkFinishMatches() {
-                    const res = this.matches.filter(m => m.markAsFinished).map(m => ({ match_id: m.id, actual_home: parseInt(m.actualHome), actual_away: parseInt(m.actualAway) }));
-                    if (res.length === 0) return alert("ابتدا بازی‌ها را انتخاب کنید.");
-                    fetch(`/matches/bulk-finish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ results: res }) })
-                    .then(() => { alert("نتایج گروهی ثبت شد."); this.selectedMatches = []; this.initData(); });
+                // 🌟 تابع جدید که در اینجا قرار می‌گیرد:
+                sendLiveUpdate(m) {
+                    if (m.actualHome === null || m.actualAway === null || m.actualHome === "" || m.actualAway === "") {
+                        return alert("ابتدا گل‌های فعلی هر دو تیم را در کادر وارد کنید.");
+                    }
+                    fetch(`/matches/live-update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            match_id: m.id, 
+                            home_goals: parseInt(m.actualHome), 
+                            away_goals: parseInt(m.actualAway) 
+                        })
+                    }).then(() => { 
+                        alert("گزارش لحظه‌ای با موفقیت در کانال بله ارسال شد!"); 
+                    });
                 },
+                // 🌟 پایان تابع جدید
 
                 logout() { localStorage.removeItem('footballUser'); window.location.href = '/'; }
             };

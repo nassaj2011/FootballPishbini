@@ -47,6 +47,11 @@ def get_persian_name(username):
     mapping_lower = {k.lower(): v for k, v in USER_MAPPING.items()}
     return mapping_lower.get(username.lower().strip(), username)
 
+def to_persian_num(num_str):
+    mapping = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
+    return str(num_str).translate(mapping)
+
+
 # --- تنظیمات اتصال به بله ---
 BALE_TOKEN = "928514616:u3lR097wIz127f4g4W0GXRyN9KJT5kADmlI"
 BALE_CHAT_ID = "@Golchine_Akhbar"
@@ -437,23 +442,17 @@ def calculate_leaderboard_data(db_session):
 
 def generate_bale_summary_message(db_session: Session, finished_match_id: int) -> str:
     match = db_session.query(db.Match).filter(db.Match.id == finished_match_id).first()
-    if not match:
-        return ""
+    if not match: return ""
        
-    # دریافت اطلاعات لحظه‌ای جدول برای استخراج ترند و جایزه
     lb_data = calculate_leaderboard_data(db_session)
     user_stats = {item['id']: item for item in lb_data}
 
-
-    rlm = "\u200F" # کاراکتر نامرئی برای راست‌چین کردن قطعی پیام‌ها
-    msg_parts = [
-        f"{rlm}🏁 **سوت پایان! نتیجه نهایی در سیستم ثبت شد** 🏁\n",
-        f"{rlm}⚽️ **{match.home_team} {match.actual_home_goals} - {match.actual_away_goals} {match.away_team}**",
-        f"{rlm}*(پایان بازی)*\n\n{rlm}🏆 **وضعیت جدول و عملکرد کاربران در این بازی:**\n"
-    ]
+    ah_fa = to_persian_num(match.actual_home_goals)
+    aa_fa = to_persian_num(match.actual_away_goals)
+    
+    msg_parts = [f"🏁 سوت پایان! {match.home_team} {ah_fa}-{aa_fa} {match.away_team}\n"]
     
     predictions = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == finished_match_id).all()
-    # مرتب‌سازی کاربران بر اساس امتیاز کل آن‌ها در جدول
     predictions.sort(key=lambda x: user_stats.get(x[1].id, {}).get('score', 0), reverse=True)
     
     medals = ["🥇", "🥈", "🥉"]
@@ -461,93 +460,112 @@ def generate_bale_summary_message(db_session: Session, finished_match_id: int) -
         medal = medals[idx] if idx < 3 else "👤"
         stats = user_stats.get(user.id, {})
         
-        # ۱. رفع باگ فرمول امتیازدهی
         ph = pred.predicted_home_goals
         pa = pred.predicted_away_goals
         ah = match.actual_home_goals
         aa = match.actual_away_goals
         
-        if ph == ah and pa == aa:
-            point_text = "👈 *3 امتیاز کامل*"
-        elif (ph - pa) == (ah - aa):
-            point_text = "👈 *2 امتیاز (تفاضل)*"
-        elif (ph > pa and ah > aa) or (ph < pa and ah < aa):
-            point_text = "👈 *1 امتیاز (برنده)*"
-        else:
-            point_text = "👈 *بدون امتیاز*"
+        if ph == ah and pa == aa: pt_txt = "۳ امتیاز کامل"
+        elif (ph - pa) == (ah - aa): pt_txt = "۲ امتیاز"
+        elif (ph > pa and ah > aa) or (ph < pa and ah < aa): pt_txt = "۱ امتیاز"
+        else: pt_txt = "بدون امتیاز"
 
-
-        # ۲. استخراج نام تیمی که کاربر برنده دانسته
-        if ph > pa:
-            pred_winner = match.home_team
-        elif pa > ph:
-            pred_winner = match.away_team
-        else:
-            pred_winner = "مساوی"
-
-
-        # ۳. ترند و جایزه
-        trend_val = stats.get('trend', '-')
-        prize_val = stats.get('prize', 0)
-        total_score = stats.get('score', 0)
+        dn = get_persian_name(user.username if user.username else user.name)
+        total_score_fa = to_persian_num(stats.get('score', 0))
+        ph_fa, pa_fa = to_persian_num(ph), to_persian_num(pa)
         
-        trend_icon = "🟢 صعود" if trend_val == 'up' else "🔴 سقوط" if trend_val == 'down' else "⚪️ ثابت"
-        prize_text = f" | 💰 {prize_val:,.0f} تومان" if prize_val > 0 else ""
+        msg_parts.append(f"{medal} {dn} ({total_score_fa} امتیاز) | حدس: {ph_fa}-{pa_fa} ({pt_txt})")
 
-
-        # ۴. تغییر نام کاربری
-        raw_name = user.username if user.username else user.name
-        display_name = get_persian_name(raw_name)
-
-
-        # ۵. سرهم کردن پیام راست‌چین
-        msg_parts.append(f"{rlm}{medal} **{display_name}** | ⭐️ {total_score} امتیاز | 📊 {trend_icon}{prize_text}\n{rlm}🎯 حدس: ({ph} - {pa}) {pred_winner} {point_text}\n")
-
-
-    msg_parts.append(f"{rlm}➖➖➖➖➖➖➖➖➖➖\n")
+    msg_parts.append("➖➖➖")
+    
     next_match = db_session.query(db.Match).filter(db.Match.status == "upcoming").order_by(db.Match.timestamp.asc()).first()
-   
     if next_match:
         time_left_str = "نامشخص"
         if next_match.timestamp:
-            time_diff = datetime.fromtimestamp(next_match.timestamp) - datetime.now()
-            ts_secs = int(time_diff.total_seconds())
+            ts_secs = int((datetime.fromtimestamp(next_match.timestamp) - datetime.now()).total_seconds())
             if ts_secs > 0:
                 h, r = divmod(ts_secs, 3600)
                 m = r // 60
-                time_left_str = f"{h} ساعت و {m} دقیقه"
-            else:
-                time_left_str = "زمان ثبت پیش‌بینی تمام شده!"
+                time_left_str = f"{to_persian_num(h)} ساعت و {to_persian_num(m)} دقیقه" if h > 0 else f"{to_persian_num(m)} دقیقه"
+            else: time_left_str = "زمان تمام شده!"
 
-
-        msg_parts.append(f"{rlm}🔜 **نبرد بعدی فرا رسید!**\n{rlm}⚔️ **{next_match.home_team} 🆚 {next_match.away_team}**\n\n{rlm}⏳ **زمان تا قفل فرم:** {time_left_str}\n\n{rlm}👀 **پیش‌بینی‌های ثبت‌شده:**")
+        msg_parts.append(f" بعدی: {next_match.home_team} 🆚 {next_match.away_team}")
+        msg_parts.append(f"⏳ زمان : {time_left_str}")
+        msg_parts.append("👀 پیش‌بینی‌ها:")
+        
         next_preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == next_match.id).all()
-        predicted_user_ids = []
-       
-        for pred, user in next_preds:
-            raw_name = user.username if user.username else user.name
-            dn = get_persian_name(raw_name)
-            msg_parts.append(f"{rlm}👤 {dn}: {next_match.home_team} {pred.predicted_home_goals} - {pred.predicted_away_goals} {next_match.away_team}")
-            predicted_user_ids.append(user.id)
+        for npred, nuser in next_preds:
+            dn = get_persian_name(nuser.username if nuser.username else nuser.name)
+            msg_parts.append(f"{dn}: {to_persian_num(npred.predicted_home_goals)}-{to_persian_num(npred.predicted_away_goals)} {next_match.away_team}")
 
-
-        all_users = db_session.query(db.User).all()
-        missing_users = [u for u in all_users if u.id not in predicted_user_ids]
-        if missing_users:
-            msg_parts.append(f"\n{rlm}⚠️ **هشدار به غایبین!**\n{rlm}تا دیر نشده فرم رو پر کنید:")
-            missing_names = [f"@{get_persian_name(u.username if u.username else u.name)}" for u in missing_users]
-            msg_parts.append(f"{rlm}" + "، ".join(missing_names))
-
-
-    msg_parts.append(f"\n{rlm}👇 **همین الان به سایت مراجعه و پیش‌بینی‌ات رو ثبت کن!**")
     return "\n".join(msg_parts)
-
 
 # --- مسیرهای مربوط به FastAPI ---
 
 @app.get("/")
 def home(request: Request): 
     return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
+
+def generate_live_bale_message(db_session: Session, match_id: int, live_home: int, live_away: int) -> str:
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if not match: return ""
+
+    # دریافت جدول پایه (بدون در نظر گرفتن این بازی)
+    base_lb = calculate_leaderboard_data(db_session)
+    base_stats = {item['id']: item for item in base_lb}
+
+    preds = db_session.query(db.Prediction, db.User).join(db.User).filter(db.Prediction.match_id == match_id).all()
+    temp_users = []
+
+    for pred, user in preds:
+        ph, pa = pred.predicted_home_goals, pred.predicted_away_goals
+        pt = 0
+        if ph == live_home and pa == live_away: pt = 3
+        elif (ph - pa) == (live_home - live_away): pt = 2
+        elif (ph > pa and live_home > live_away) or (ph < pa and live_home < live_away): pt = 1
+
+        current_score = base_stats.get(user.id, {}).get('score', 0)
+        temp_users.append({
+            "name": get_persian_name(user.username if user.username else user.name),
+            "score": current_score + pt,
+            "ph_fa": to_persian_num(ph),
+            "pa_fa": to_persian_num(pa),
+            "pt_txt": "۳ امتیاز کامل" if pt==3 else "۲ امتیاز" if pt==2 else "۱ امتیاز" if pt==1 else "بدون امتیاز"
+        })
+
+    # مرتب‌سازی کاربران بر اساس امتیاز لحظه‌ای
+    temp_users.sort(key=lambda x: x['score'], reverse=True)
+
+    msg_parts = [
+        f"تغییر جدول با نتیجه فعلی ⚽️",
+        f"نتیجه فعلی {to_persian_num(live_home)}-{to_persian_num(live_away)}\n"
+    ]
+
+    for idx, tu in enumerate(temp_users):
+        medal = ["🥇", "🥈", "🥉"][idx] if idx < 3 else "👤"
+        msg_parts.append(f"{medal} {tu['name']} ({to_persian_num(tu['score'])} امتیاز) | حدس: {tu['ph_fa']}-{tu['pa_fa']} ({tu['pt_txt']})")
+
+    return "\n".join(msg_parts)
+
+class LiveUpdateReq(BaseModel):
+    match_id: int
+    home_goals: int
+    away_goals: int
+
+@app.post("/matches/live-update")
+def live_update_match(req: LiveUpdateReq, db_session: Session = Depends(get_db)):
+    match = db_session.query(db.Match).filter(db.Match.id == req.match_id).first()
+    if not match: return {"status": "error"}
+
+    # فقط مقادیر گل آپدیت می‌شود، وضعیت بازی finished نمی‌شود تا جدول اصلی بهم نریزد
+    match.actual_home_goals = req.home_goals
+    match.actual_away_goals = req.away_goals
+    db_session.commit()
+
+    msg = generate_live_bale_message(db_session, req.match_id, req.home_goals, req.away_goals)
+    if msg: send_bale_notification(msg)
+
+    return {"status": "success"}
 
 @app.get("/admin")
 def admin_page(request: Request): 

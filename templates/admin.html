@@ -284,27 +284,27 @@
         </div>
 
         <dialog :open="modals.editMatch">
-            <article x-data="{ m: currentMatch }">
+            <article>
                 <header>
                     <a href="#close" aria-label="Close" class="close" @click.prevent="closeModal()"></a>
                     <h3 style="margin:0; font-size: 1.2em; font-weight:800;">⚙️ تنظیمات مسابقه</h3>
                 </header>
-                <div style="padding: 20px;" x-if="m">
+                <div style="padding: 20px;" x-show="currentMatch">
                     <div class="grid" style="gap: 10px; margin-bottom: 10px;">
-                        <label>میزبان: <input type="text" x-model="m.home_team" style="border-radius:8px;"></label>
-                        <label>میهمان: <input type="text" x-model="m.away_team" style="border-radius:8px;"></label>
+                        <label>میزبان: <input type="text" x-model="currentMatch.home_team" style="border-radius:8px;"></label>
+                        <label>میهمان: <input type="text" x-model="currentMatch.away_team" style="border-radius:8px;"></label>
                     </div>
                     <div class="grid" style="gap: 10px; margin-bottom: 10px;">
-                        <label>تاریخ: <input type="text" x-model="m.match_date" dir="ltr" style="text-align:right; border-radius:8px;"></label>
-                        <label>ساعت: <input type="text" x-model="m.match_time" dir="ltr" style="text-align:right; border-radius:8px;"></label>
+                        <label>تاریخ: <input type="text" x-model="currentMatch.match_date" dir="ltr" style="text-align:right; border-radius:8px;"></label>
+                        <label>ساعت: <input type="text" x-model="currentMatch.match_time" dir="ltr" style="text-align:right; border-radius:8px;"></label>
                     </div>
                     <label>گروه / استادیوم:
-                        <input type="text" x-model="m.group_name" style="border-radius:8px;">
+                        <input type="text" x-model="currentMatch.group_name" style="border-radius:8px;">
                     </label>
                 </div>
                 <footer style="display: flex; gap: 10px; justify-content: flex-end; padding: 15px 20px; background: #f8fafc; border-radius: 0 0 20px 20px;">
                     <button @click="closeModal()" style="background: #94a3b8; border: none; width: auto; margin:0; border-radius:8px; font-weight:bold;">انصراف</button>
-                    <button @click="saveAdvancedMatchEdit(m)" style="background: #3b82f6; border: none; width: auto; margin:0; border-radius:8px; font-weight:bold;">ذخیره تغییرات</button>
+                    <button @click="saveAdvancedMatchEdit(currentMatch)" style="background: #3b82f6; border: none; width: auto; margin:0; border-radius:8px; font-weight:bold;">ذخیره تغییرات</button>
                 </footer>
             </article>
         </dialog>

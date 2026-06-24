@@ -496,8 +496,19 @@ def generate_bale_summary_message(db_session: Session, finished_match_id: int) -
         next_preds = db_session.query(db.Prediction, db.User).join(db.User, db.Prediction.user_id == db.User.id).filter(db.Prediction.match_id == next_match.id).all()
         for npred, nuser in next_preds:
             dn = get_persian_name(nuser.username if nuser.username else nuser.name)
-            msg_parts.append(f"{dn}: {to_persian_num(npred.predicted_home_goals)}-{to_persian_num(npred.predicted_away_goals)} {next_match.away_team}")
-
+            
+            nph = npred.predicted_home_goals
+            npa = npred.predicted_away_goals
+            
+            # تشخیص تیمی که کاربر پیش‌بینی کرده می‌برد
+            if nph > npa:
+                pred_winner = next_match.home_team
+            elif npa > nph:
+                pred_winner = next_match.away_team
+            else:
+                pred_winner = "مساوی"
+                
+            msg_parts.append(f"👤 {dn}: ({to_persian_num(nph)}-{to_persian_num(npa)}) {pred_winner}")
     return "\n".join(msg_parts)
 
 # --- مسیرهای مربوط به FastAPI ---

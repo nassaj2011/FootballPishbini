@@ -13,6 +13,7 @@ from difflib import SequenceMatcher
 
 
 from fastapi import FastAPI, Depends, HTTPException, Request, File, UploadFile
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -263,6 +264,9 @@ scheduler.start()
 # خط تعریف اپلیکیشن
 app = FastAPI(title="سیستم پیش‌بینی فوتبال")
 
+# 🌟 خط کلیدی برای باز شدن پوشه استاتیک و فعال شدن نصب وب‌اپلیکیشن:
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # 🌟 این خط احتمالاً پاک شده است، حتماً باید زیر app باشد:
 templates = Jinja2Templates(directory="templates")
 
@@ -293,7 +297,7 @@ def startup_db_check():
 # کدهای PWA که قبلا اضافه کردیم
 @app.get("/manifest.json", include_in_schema=False)
 def get_manifest():
-    return FileResponse("static/manifest.json", media_type="application/json")
+    return FileResponse("static/manifest.json", media_type="application/manifest+json")
 
 @app.get("/sw.js", include_in_schema=False)
 def get_service_worker():

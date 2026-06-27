@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>لیگ پیش‌بینی فوتبال</title>
+    <title>لیگ پیش‌بینی فوتبال</title>  
+
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
    
@@ -997,5 +1002,40 @@
             };
         }
     </script>
+
+    <button id="installAppBtn" style="display: none; position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px 24px; border-radius: 30px; font-weight: bold; z-index: 10000; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); font-size: 1.1em; cursor: pointer;">
+        📥 نصب اپلیکیشن سایت
+    </button>
+
+    <script>
+        // 🌟 اسکریپت شکار رویداد نصب در اندروید
+        let deferredPrompt;
+        const installBtn = document.getElementById('installAppBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // جلوگیری از نمایش پیام پیش‌فرض و زشت گوگل
+            e.preventDefault();
+            // ذخیره رویداد برای استفاده در دکمه خودمان
+            deferredPrompt = e;
+            // نمایش دکمه نصب اختصاصی ما
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            // مخفی کردن دکمه پس از کلیک
+            installBtn.style.display = 'none';
+            // نمایش پنجره اصلی نصب اندروید
+            deferredPrompt.prompt();
+            // انتظار برای واکنش کاربر (نصب یا لغو)
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+        });
+
+        // اگر کاربر قبلا اپلیکیشن را نصب کرده بود، دکمه را برایش مخفی کن
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+        });
+    </script>
+
 </body>
 </html>

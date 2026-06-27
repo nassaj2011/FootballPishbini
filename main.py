@@ -13,6 +13,7 @@ from difflib import SequenceMatcher
 
 
 from fastapi import FastAPI, Depends, HTTPException, Request, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse
@@ -263,6 +264,14 @@ scheduler.start()
 
 # خط تعریف اپلیکیشن
 app = FastAPI(title="سیستم پیش‌بینی فوتبال")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 🌟 خط کلیدی برای باز شدن پوشه استاتیک و فعال شدن نصب وب‌اپلیکیشن:
 app.mount("/static", StaticFiles(directory="static"), name="static")

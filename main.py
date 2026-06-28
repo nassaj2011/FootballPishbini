@@ -432,24 +432,24 @@ def calculate_leaderboard_data(db_session):
         if len(first_place_users) >= 2:
             share = total_prize / len(first_place_users)
             for u in first_place_users: 
-                u["prize"] = round(share, 2)
+                u["prize"] = int(share)
         elif len(first_place_users) == 1:
             u1 = first_place_users[0]
             if len(second_place_users) == 1:
                 u2 = second_place_users[0]
                 total_pts = u1["score"] + u2["score"]
                 if total_pts > 0:
-                    u1["prize"] = round((u1["score"] / total_pts) * total_prize, 2)
-                    u2["prize"] = round((u2["score"] / total_pts) * total_prize, 2)
+                    u1["prize"] = int((u1["score"] / total_pts) * total_prize)
+                    u2["prize"] = int((u2["score"] / total_pts) * total_prize)
                 else: 
-                    u1["prize"] = u2["prize"] = round(total_prize / 2, 2)
+                    u1["prize"] = u2["prize"] = int(total_prize / 2)
             elif len(second_place_users) >= 2:
-                u1["prize"] = round(0.55 * total_prize, 2)
+                u1["prize"] = int(0.55 * total_prize)
                 share_45 = (0.45 * total_prize) / len(second_place_users)
                 for u in second_place_users: 
-                    u["prize"] = round(share_45, 2)
+                    u["prize"] = int(share_45)
             else: 
-                u1["prize"] = total_prize
+                u1["prize"] = int(total_prize)
 
     return leaderboard_data
 
@@ -655,90 +655,87 @@ def live_update_match(req: LiveUpdateReq, db_session: Session = Depends(get_db))
 # 🌟 روت جدید برای دریافت جدول لایو در پنل ادمین
 @app.get("/leaderboard/live-admin")
 def get_live_leaderboard_admin(db_session: Session = Depends(get_db)):
-    # 1. گرفتن رتبه و اطلاعات قبل از بازی‌های زنده (برای فلش صعود/سقوط و استخراج مبلغ کل جایزه)
     base_lb = calculate_leaderboard_data(db_session)
+    user_stats = {item['id']: item for item in base_lb}
     prev_ranks = {item['id']: item['rank'] for item in base_lb}
-    
-    # استخراج هوشمندانه مبلغ کل صندوق جایزه از جدول پایه
-    total_prize = 0.0
-    for u in base_lb:
-        if u.get('score', 0) > 0 and u.get('prize', 0) > 0:
-            total_prize = (float(u['prize']) * sum(x['score'] for x in base_lb)) / u['score']
-            break
 
-    users = db_session.query(db.User).all()
-    finished_matches = db_session.query(db.Match).filter(db.Match.status == 'finished').all()
-    
-    # ساختار خام برای هر کاربر
-    user_stats = {}
-    for u in users:
-        user_stats[u.id] = {
-            "id": u.id, "name": u.name, "username": u.username,
-            "score": 0, "exact": 0, "diff": 0, "winner": 0, "wrong": 0, "absent": 0,
-            "prev_rank": prev_ranks.get(u.id, 999)
-        }
-
-    # 2. شمارش آمار بازی‌های پایان‌یافته
-    for m in finished_matches:
-        preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m.id).all()
-        pred_dict = {p.user_id: p for p in preds}
-        for uid, stats in user_stats.items():
-            if uid in pred_dict:
-                ph, pa = pred_dict[uid].predicted_home_goals, pred_dict[uid].predicted_away_goals
-                ah, aa = m.actual_home_goals, m.actual_away_goals
-                if ph == ah and pa == aa:
-                    stats["exact"] += 1; stats["score"] += 3
-                elif (ph - pa) == (ah - aa):
-                    stats["diff"] += 1; stats["score"] += 2
-                elif (ph > pa and ah > aa) or (ph < pa and ah < aa):
-                    stats["winner"] += 1; stats["score"] += 1
-                else:
-                    stats["wrong"] += 1
-            else:
-                stats["absent"] += 1
-
-    # 3. شمارش آمار بازی‌های در جریان (لایو)
     for m_id, live_data in ACTIVE_LIVE_SCORES.items():
         preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m_id).all()
         pred_dict = {p.user_id: p for p in preds}
         lh, la = live_data["home"], live_data["away"]
+
         for uid, stats in user_stats.items():
             if uid in pred_dict:
                 ph, pa = pred_dict[uid].predicted_home_goals, pred_dict[uid].predicted_away_goals
                 if ph == lh and pa == la:
-                    stats["exact"] += 1; stats["score"] += 3
+                    stats["exact"] += 1
+                    stats["score"] += 3
                 elif (ph - pa) == (lh - la):
-                    stats["diff"] += 1; stats["score"] += 2
+                    stats["diff"] += 1
+                    stats["score"] += 2
                 elif (ph > pa and lh > la) or (ph < pa and lh < la):
-                    stats["winner"] += 1; stats["score"] += 1
+                    stats["winner"] += 1
+                    stats["score"] += 1
                 else:
                     stats["wrong"] += 1
             else:
-                stats["absent"] += 1
+                stats["missed"] = stats.get("missed", 0) + 1
 
-    # 4. مرتب‌سازی، رتبه‌بندی و تعیین صعود/سقوط
     live_lb = list(user_stats.values())
     live_lb.sort(key=lambda x: x['score'], reverse=True)
-    
+
     current_rank = 1
-    total_live_score = sum(u["score"] for u in live_lb)
-    
     for i, row in enumerate(live_lb):
+        row["absent"] = row.get("missed", 0)
         if i > 0 and live_lb[i]["score"] < live_lb[i-1]["score"]:
             current_rank = i + 1
         row["rank"] = current_rank
-        
-        # 🌟 محاسبه جایزه به صورت عدد صحیح (بدون اعشار) با دستور int()
-        if total_live_score > 0:
-            row["prize"] = int((row["score"] / total_live_score) * total_prize)
-        else:
-            row["prize"] = 0
-            
-        # تعیین فلش تغییر رتبه
-        if row["rank"] < row["prev_rank"]: row["rank_change"] = "up"
-        elif row["rank"] > row["prev_rank"]: row["rank_change"] = "down"
-        else: row["rank_change"] = "same"
-        
+
+        if row["rank"] < prev_ranks.get(row['id'], 999): 
+            row["rank_change"] = "up"
+        elif row["rank"] > prev_ranks.get(row['id'], 999): 
+            row["rank_change"] = "down"
+        else: 
+            row["rank_change"] = "same"
+
+    prize_setting = db_session.query(db.SystemSetting).filter(db.SystemSetting.key == "total_prize").first()
+    total_prize = float(prize_setting.value) if prize_setting else 0.0
+
+    for row in live_lb:
+        row["prize"] = 0
+
+    if total_prize > 0 and live_lb:
+        from collections import defaultdict
+        rank_groups = defaultdict(list)
+        for row in live_lb: 
+            rank_groups[row["rank"]].append(row)
+
+        first_place_users = rank_groups[1]
+        distinct_ranks = sorted(rank_groups.keys())
+        second_place_users = rank_groups[distinct_ranks[1]] if len(distinct_ranks) > 1 else []
+
+        if len(first_place_users) >= 2:
+            share = total_prize / len(first_place_users)
+            for u in first_place_users: 
+                u["prize"] = int(share)
+        elif len(first_place_users) == 1:
+            u1 = first_place_users[0]
+            if len(second_place_users) == 1:
+                u2 = second_place_users[0]
+                total_pts = u1["score"] + u2["score"]
+                if total_pts > 0:
+                    u1["prize"] = int((u1["score"] / total_pts) * total_prize)
+                    u2["prize"] = int((u2["score"] / total_pts) * total_prize)
+                else: 
+                    u1["prize"] = u2["prize"] = int(total_prize / 2)
+            elif len(second_place_users) >= 2:
+                u1["prize"] = int(0.55 * total_prize)
+                share_45 = (0.45 * total_prize) / len(second_place_users)
+                for u in second_place_users: 
+                    u["prize"] = int(share_45)
+            else: 
+                u1["prize"] = int(total_prize)
+
     return live_lb
 
 

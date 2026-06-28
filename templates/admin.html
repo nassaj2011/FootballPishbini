@@ -316,27 +316,44 @@
         </dialog>
         
         <dialog :open="modals.liveLeaderboard">
-    <article style="max-width: 600px; width: 95%;">
-        <header>
+    <article style="max-width: 950px; width: 95%;"> <header>
             <a href="#close" aria-label="Close" class="close" @click.prevent="modals.liveLeaderboard = false"></a>
             <h3 style="margin:0; font-size: 1.2em; font-weight:800; color: #2c3e50;">🏆 جدول رده‌بندی لحظه‌ای</h3>
         </header>
         <div style="padding: 15px; overflow-x: auto; background: white;" id="capture-live-zone">
             <div style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #e67e22; font-size: 0.85em;">(همراه با احتساب نتایج زنده در حال برگزاری)</div>
-            <table class="striped" style="font-size: 0.85em; text-align: center; background: white; border-radius: 12px; margin: 0;">
+            <table class="striped" style="font-size: 0.85em; text-align: center; background: white; border-radius: 12px; margin: 0; white-space: nowrap;">
                 <thead>
                     <tr style="background-color: #2c3e50; color: white;">
                         <th>رتبه</th>
+                        <th>تغییر</th>
                         <th>کاربر</th>
-                        <th>امتیاز لایو</th>
+                        <th>امتیاز کل</th>
+                        <th title="۳ امتیاز کامل (دقیق)">✅۳</th>
+                        <th title="۲ امتیاز (تفاضل)">✅۲</th>
+                        <th title="۱ امتیاز (برنده)">✅۱</th>
+                        <th title="پیش‌بینی غلط">❌</th>
+                        <th title="غایب (ثبت نکرده)">➖</th>
+                        <th>💰 سهم جایزه (تومان)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <template x-for="u in liveLeaderboardData" :key="u.id">
                         <tr>
                             <td><strong x-text="u.rank"></strong></td>
+                            <td dir="ltr">
+                                <span x-show="u.rank_change === 'up'" style="color: #10b981; font-weight: bold; font-size: 1.2em;">🔼</span>
+                                <span x-show="u.rank_change === 'down'" style="color: #ef4444; font-weight: bold; font-size: 1.2em;">🔽</span>
+                                <span x-show="u.rank_change === 'same'" style="color: #94a3b8; font-weight: bold; font-size: 1.2em;">-</span>
+                            </td>
                             <td x-text="u.username || u.name"></td>
-                            <td><strong x-text="u.score" style="color: #27ae60; font-size: 1.1em;"></strong></td>
+                            <td><strong x-text="u.score" style="color: #27ae60; font-size: 1.3em;"></strong></td>
+                            <td x-text="u.exact" style="color: #059669; font-weight: bold;"></td>
+                            <td x-text="u.diff" style="color: #2563eb; font-weight: bold;"></td>
+                            <td x-text="u.winner" style="color: #d97706; font-weight: bold;"></td>
+                            <td x-text="u.wrong" style="color: #dc2626;"></td>
+                            <td x-text="u.absent" style="color: #94a3b8;"></td>
+                            <td><strong style="color: #f59e0b;" x-text="u.prize.toLocaleString('fa-IR')"></strong></td>
                         </tr>
                     </template>
                 </tbody>
@@ -347,7 +364,6 @@
         </footer>
     </article>
 </dialog>
-
 
     </main>
 

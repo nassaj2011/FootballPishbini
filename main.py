@@ -655,29 +655,90 @@ def live_update_match(req: LiveUpdateReq, db_session: Session = Depends(get_db))
 # 🌟 روت جدید برای دریافت جدول لایو در پنل ادمین
 @app.get("/leaderboard/live-admin")
 def get_live_leaderboard_admin(db_session: Session = Depends(get_db)):
+    # 1. گرفتن رتبه و اطلاعات قبل از بازی‌های زنده (برای فلش صعود/سقوط و استخراج مبلغ کل جایزه)
     base_lb = calculate_leaderboard_data(db_session)
-    user_live_stats = {item['id']: item for item in base_lb}
+    prev_ranks = {item['id']: item['rank'] for item in base_lb}
+    
+    # استخراج هوشمندانه مبلغ کل صندوق جایزه از جدول پایه
+    total_prize = 0.0
+    for u in base_lb:
+        if u.get('score', 0) > 0 and u.get('prize', 0) > 0:
+            total_prize = (float(u['prize']) * sum(x['score'] for x in base_lb)) / u['score']
+            break
 
+    users = db_session.query(db.User).all()
+    finished_matches = db_session.query(db.Match).filter(db.Match.status == 'finished').all()
+    
+    # ساختار خام برای هر کاربر
+    user_stats = {}
+    for u in users:
+        user_stats[u.id] = {
+            "id": u.id, "name": u.name, "username": u.username,
+            "score": 0, "exact": 0, "diff": 0, "winner": 0, "wrong": 0, "absent": 0,
+            "prev_rank": prev_ranks.get(u.id, 999)
+        }
+
+    # 2. شمارش آمار بازی‌های پایان‌یافته
+    for m in finished_matches:
+        preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m.id).all()
+        pred_dict = {p.user_id: p for p in preds}
+        for uid, stats in user_stats.items():
+            if uid in pred_dict:
+                ph, pa = pred_dict[uid].predicted_home_goals, pred_dict[uid].predicted_away_goals
+                ah, aa = m.actual_home_goals, m.actual_away_goals
+                if ph == ah and pa == aa:
+                    stats["exact"] += 1; stats["score"] += 3
+                elif (ph - pa) == (ah - aa):
+                    stats["diff"] += 1; stats["score"] += 2
+                elif (ph > pa and ah > aa) or (ph < pa and ah < aa):
+                    stats["winner"] += 1; stats["score"] += 1
+                else:
+                    stats["wrong"] += 1
+            else:
+                stats["absent"] += 1
+
+    # 3. شمارش آمار بازی‌های در جریان (لایو)
     for m_id, live_data in ACTIVE_LIVE_SCORES.items():
         preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m_id).all()
-        for pred in preds:
-            if pred.user_id not in user_live_stats: continue
-            ph, pa = pred.predicted_home_goals, pred.predicted_away_goals
-            lh, la = live_data["home"], live_data["away"]
-            pt = 0
-            if ph == lh and pa == la: pt = 3
-            elif (ph - pa) == (lh - la): pt = 2
-            elif (ph > pa and lh > la) or (ph < pa and lh < la): pt = 1
-            user_live_stats[pred.user_id]['score'] += pt
+        pred_dict = {p.user_id: p for p in preds}
+        lh, la = live_data["home"], live_data["away"]
+        for uid, stats in user_stats.items():
+            if uid in pred_dict:
+                ph, pa = pred_dict[uid].predicted_home_goals, pred_dict[uid].predicted_away_goals
+                if ph == lh and pa == la:
+                    stats["exact"] += 1; stats["score"] += 3
+                elif (ph - pa) == (lh - la):
+                    stats["diff"] += 1; stats["score"] += 2
+                elif (ph > pa and lh > la) or (ph < pa and lh < la):
+                    stats["winner"] += 1; stats["score"] += 1
+                else:
+                    stats["wrong"] += 1
+            else:
+                stats["absent"] += 1
 
-    live_lb = list(user_live_stats.values())
+    # 4. مرتب‌سازی، رتبه‌بندی و تعیین صعود/سقوط
+    live_lb = list(user_stats.values())
     live_lb.sort(key=lambda x: x['score'], reverse=True)
     
     current_rank = 1
+    total_live_score = sum(u["score"] for u in live_lb)
+    
     for i, row in enumerate(live_lb):
         if i > 0 and live_lb[i]["score"] < live_lb[i-1]["score"]:
             current_rank = i + 1
         row["rank"] = current_rank
+        
+        # 🌟 محاسبه جایزه به صورت عدد صحیح (بدون اعشار) با دستور int()
+        if total_live_score > 0:
+            row["prize"] = int((row["score"] / total_live_score) * total_prize)
+        else:
+            row["prize"] = 0
+            
+        # تعیین فلش تغییر رتبه
+        if row["rank"] < row["prev_rank"]: row["rank_change"] = "up"
+        elif row["rank"] > row["prev_rank"]: row["rank_change"] = "down"
+        else: row["rank_change"] = "same"
+        
     return live_lb
 
 

@@ -571,25 +571,115 @@ def generate_live_bale_message(db_session: Session, match_id: int, live_home: in
 
     return "\n".join(msg_parts)
 
+# 🌟 حافظه موقت برای ذخیره همزمان چندین بازی در حال برگزاری
+ACTIVE_LIVE_SCORES = {}
+
 class LiveUpdateReq(BaseModel):
     match_id: int
     home_goals: int
     away_goals: int
+    minute: str = ""
+
+def generate_live_bale_message(db_session: Session, trigger_match_id: int) -> str:
+    # گرفتن جدول پایه (بدون لایو)
+    base_lb = calculate_leaderboard_data(db_session)
+    user_live_stats = {item['id']: {'name': item['username'] or item['name'], 'score': item['score'], 'rank': item['rank'], 'ph_fa': '', 'pa_fa': '', 'pt_txt': ''} for item in base_lb}
+
+    # 🌟 محاسبه و جمع زدن امتیازات تمام بازی‌های در جریان
+    for m_id, live_data in ACTIVE_LIVE_SCORES.items():
+        preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m_id).all()
+        for pred in preds:
+            if pred.user_id not in user_live_stats: continue
+            ph, pa = pred.predicted_home_goals, pred.predicted_away_goals
+            lh, la = live_data["home"], live_data["away"]
+            pt = 0
+            if ph == lh and pa == la: pt = 3
+            elif (ph - pa) == (lh - la): pt = 2
+            elif (ph > pa and lh > la) or (ph < pa and lh < la): pt = 1
+
+            user_live_stats[pred.user_id]['score'] += pt
+
+            # ذخیره متن پیش‌بینی فقط برای بازی‌ای که دکمه آن الان زده شده
+            if m_id == trigger_match_id:
+                user_live_stats[pred.user_id]['ph_fa'] = to_persian_num(ph)
+                user_live_stats[pred.user_id]['pa_fa'] = to_persian_num(pa)
+                user_live_stats[pred.user_id]['pt_txt'] = "۳ امتیاز کامل" if pt==3 else "۲ امتیاز" if pt==2 else "۱ امتیاز" if pt==1 else "بدون امتیاز"
+
+    # مرتب‌سازی کاربران
+    temp_users = list(user_live_stats.values())
+    temp_users.sort(key=lambda x: x['score'], reverse=True)
+
+    # اطلاعات بازی تریگر شده
+    trigger_data = ACTIVE_LIVE_SCORES[trigger_match_id]
+    lh, la = trigger_data["home"], trigger_data["away"]
+    minute_text = f" در دقیقه {to_persian_num(trigger_data['minute'])}" if trigger_data['minute'] else ""
+
+    # تشخیص هوشمند تیم برنده
+    if lh > la: status_text = f"به سود {trigger_data['home_team']}"
+    elif la > lh: status_text = f"به سود {trigger_data['away_team']}"
+    else: status_text = "نتیجه مساوی"
+
+    msg_parts = [
+        f"تغییر جدول با گل لحظه‌ای{minute_text} ⚽️",
+        f"نتیجه فعلی: {trigger_data['home_team']} {to_persian_num(lh)}-{to_persian_num(la)} {trigger_data['away_team']} ({status_text})\n"
+    ]
+
+    for idx, tu in enumerate(temp_users):
+        medal = ["🥇", "🥈", "🥉"][idx] if idx < 3 else "👤"
+        if tu['ph_fa']:
+            msg_parts.append(f"{medal} {get_persian_name(tu['name'])} ({to_persian_num(tu['score'])} امتیاز) | حدس: {tu['ph_fa']}-{tu['pa_fa']} ({tu['pt_txt']})")
+        else:
+            msg_parts.append(f"{medal} {get_persian_name(tu['name'])} ({to_persian_num(tu['score'])} امتیاز) | ❌ غایب")
+
+    return "\n".join(msg_parts)
 
 @app.post("/matches/live-update")
 def live_update_match(req: LiveUpdateReq, db_session: Session = Depends(get_db)):
     match = db_session.query(db.Match).filter(db.Match.id == req.match_id).first()
     if not match: return {"status": "error"}
 
-    # فقط مقادیر گل آپدیت می‌شود، وضعیت بازی finished نمی‌شود تا جدول اصلی بهم نریزد
     match.actual_home_goals = req.home_goals
     match.actual_away_goals = req.away_goals
     db_session.commit()
 
-    msg = generate_live_bale_message(db_session, req.match_id, req.home_goals, req.away_goals)
-    if msg: send_bale_notification(msg)
+    # ذخیره در حافظه موقت
+    ACTIVE_LIVE_SCORES[req.match_id] = {
+        "home": req.home_goals, "away": req.away_goals, 
+        "minute": req.minute, "home_team": match.home_team, "away_team": match.away_team
+    }
 
+    msg = generate_live_bale_message(db_session, req.match_id)
+    if msg: send_bale_notification(msg)
     return {"status": "success"}
+
+# 🌟 روت جدید برای دریافت جدول لایو در پنل ادمین
+@app.get("/leaderboard/live-admin")
+def get_live_leaderboard_admin(db_session: Session = Depends(get_db)):
+    base_lb = calculate_leaderboard_data(db_session)
+    user_live_stats = {item['id']: item for item in base_lb}
+
+    for m_id, live_data in ACTIVE_LIVE_SCORES.items():
+        preds = db_session.query(db.Prediction).filter(db.Prediction.match_id == m_id).all()
+        for pred in preds:
+            if pred.user_id not in user_live_stats: continue
+            ph, pa = pred.predicted_home_goals, pred.predicted_away_goals
+            lh, la = live_data["home"], live_data["away"]
+            pt = 0
+            if ph == lh and pa == la: pt = 3
+            elif (ph - pa) == (lh - la): pt = 2
+            elif (ph > pa and lh > la) or (ph < pa and lh < la): pt = 1
+            user_live_stats[pred.user_id]['score'] += pt
+
+    live_lb = list(user_live_stats.values())
+    live_lb.sort(key=lambda x: x['score'], reverse=True)
+    
+    current_rank = 1
+    for i, row in enumerate(live_lb):
+        if i > 0 and live_lb[i]["score"] < live_lb[i-1]["score"]:
+            current_rank = i + 1
+        row["rank"] = current_rank
+    return live_lb
+
 
 @app.get("/admin")
 def admin_page(request: Request): 
@@ -874,6 +964,8 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
             match.actual_home_goals = item.actual_home
             match.actual_away_goals = item.actual_away
             match.status = "finished"
+            if match.id in ACTIVE_LIVE_SCORES:
+                del ACTIVE_LIVE_SCORES[match.id]
             
             if is_newly_finished:
                 finished_match_ids.append(match.id)

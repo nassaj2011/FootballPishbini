@@ -23,6 +23,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
         /* ارتقای تایپوگرافی و ظاهر کلی */
         body { font-family: 'Vazirmatn', Tahoma, Arial, sans-serif; background-color: #f0f4f8; font-size: 14px; }
@@ -81,23 +83,27 @@
         <div x-show="activeTab === 'matches'" x-transition>
 
             <div class="admin-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px;">
-                    <h3 style="margin: 0; font-size: 1.2em; color: #2c3e50; font-weight: 800;">⏳ مسابقات پیش‌رو (انجام نشده)</h3>
-                    <label style="font-size: 0.85em; cursor: pointer; margin:0; background: #e0f2fe; padding: 4px 10px; border-radius: 8px; color: #0284c7; font-weight: bold;">
-                        <input type="checkbox" @change="toggleAllUpcoming($event)" style="margin-left: 5px;"> انتخاب همه
-                    </label>
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px;">
+        <h3 style="margin: 0; font-size: 1.2em; color: #2c3e50; font-weight: 800;">⏳ مسابقات پیش‌رو (انجام نشده)</h3>
+        <label style="font-size: 0.85em; cursor: pointer; margin:0; background: #e0f2fe; padding: 4px 10px; border-radius: 8px; color: #0284c7; font-weight: bold;">
+            <input type="checkbox" @change="toggleAllUpcoming($event)" style="margin-left: 5px;"> انتخاب همه
+        </label>
+    </div>
+    
+    <div style="text-align: center; margin-bottom: 15px;">
+        <button @click="openLiveLeaderboardModal()" style="background-color: #8e44ad; color: white; border: none; padding: 6px 16px; border-radius: 8px; font-weight: bold; width: auto; margin: 0 auto;">🏆 مشاهده جدول لایو و گرفتن عکس</button>
+    </div>
+    
+    <div class="matches-grid">
+        <template x-for="match in sortedUpcomingMatches" :key="match.id">
+            <div class="match-card upcoming-card">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <input type="checkbox" x-model="selectedMatches" :value="match.id.toString()" style="margin-top: 2px;">
+                    <div style="text-align: left; font-size: 0.75em; color: #7f8c8d; background: #f1f5f9; padding: 4px 8px; border-radius: 6px;">
+                        📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span><br>
+                        🏆 <span x-text="match.group_name"></span>
+                    </div>
                 </div>
-                
-                <div class="matches-grid">
-                    <template x-for="match in sortedUpcomingMatches" :key="match.id">
-                        <div class="match-card upcoming-card">
-                            <div style="display: flex; justify-content: space-between; align-items: start;">
-                                <input type="checkbox" x-model="selectedMatches" :value="match.id.toString()" style="margin-top: 2px;">
-                                <div style="text-align: left; font-size: 0.75em; color: #7f8c8d; background: #f1f5f9; padding: 4px 8px; border-radius: 6px;">
-                                    📅 <span x-text="match.match_date"></span> | ⏰ <span x-text="match.match_time"></span><br>
-                                    🏆 <span x-text="match.group_name"></span>
-                                </div>
-                            </div>
                             
                             <div style="text-align: center; margin: 10px 0;">
                                 <strong style="font-size: 1.3em; color: #2c3e50;" x-text="match.home_team"></strong>
@@ -109,20 +115,20 @@
                                 <button @click.prevent="openEditModal(match)" style="font-size: 0.85em; color: #0284c7; background: transparent; border: 1px dashed #bae6fd; padding: 4px 12px; border-radius: 20px; width: auto; margin: 0 auto;">⚙️ تنظیمات مسابقه</button>
                             </div>
                             
-                            <div class="score-inputs" style="display: flex; justify-content: center; gap: 5px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;">
-    <label style="font-size: 0.8em; margin: 0; color: #ef4444; font-weight:bold; display: flex; align-items: center; gap: 4px;">
+                            <div class="score-inputs" style="display: flex; justify-content: center; gap: 4px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0;">
+    <label style="font-size: 0.8em; margin: 0; color: #ef4444; font-weight:bold; display: flex; align-items: center; gap: 2px;">
         <input type="checkbox" x-model="match.markAsFinished" style="margin:0;"> پایان
     </label>
-    <input type="number" min="0" x-model.number="match.actualHome" style="background: white;">
+    <input type="number" min="0" x-model.number="match.actualHome" style="background: white; width: 45px !important; margin: 0;">
     <span style="font-weight: bold; color: #94a3b8;">-</span>
-    <input type="number" min="0" x-model.number="match.actualAway" style="background: white;">
+    <input type="number" min="0" x-model.number="match.actualAway" style="background: white; width: 45px !important; margin: 0;">
     
-    <button @click="finishSingleMatch(match)" :disabled="!match.markAsFinished" style="background-color: #10b981; padding: 0 8px; margin: 0; height: 35px; border: none; font-size: 0.75em; border-radius: 6px; font-weight:bold;">ثبت نهایی</button>
-    
-    <button @click="sendLiveUpdate(match)" style="background-color: #f39c12; padding: 0 8px; margin: 0; height: 35px; border: none; font-size: 0.75em; border-radius: 6px; font-weight:bold; color: white;" title="ارسال گزارش زنده به کانال">⚽ گل زنده</button>
+    <input type="text" placeholder="دقیقه" x-model="match.liveMinute" style="background: white; width: 50px !important; font-size: 0.8em; margin: 0 4px; text-align: center;" title="دقیقه بازی">
+
+
+    <button @click="finishSingleMatch(match)" :disabled="!match.markAsFinished" style="background-color: #10b981; padding: 0 6px; margin: 0; height: 35px; border: none; font-size: 0.7em; border-radius: 6px; font-weight:bold;">ثبت نهایی</button>
+    <button @click="sendLiveUpdate(match)" style="background-color: #f39c12; padding: 0 6px; margin: 0; height: 35px; border: none; font-size: 0.7em; border-radius: 6px; font-weight:bold; color: white;" title="ارسال گزارش زنده به کانال">⚽ زنده</button>
 </div>
-
-
 
 
                         </div>
@@ -308,6 +314,40 @@
                 </footer>
             </article>
         </dialog>
+        
+        <dialog :open="modals.liveLeaderboard">
+    <article style="max-width: 600px; width: 95%;">
+        <header>
+            <a href="#close" aria-label="Close" class="close" @click.prevent="modals.liveLeaderboard = false"></a>
+            <h3 style="margin:0; font-size: 1.2em; font-weight:800; color: #2c3e50;">🏆 جدول رده‌بندی لحظه‌ای</h3>
+        </header>
+        <div style="padding: 15px; overflow-x: auto; background: white;" id="capture-live-zone">
+            <div style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #e67e22; font-size: 0.85em;">(همراه با احتساب نتایج زنده در حال برگزاری)</div>
+            <table class="striped" style="font-size: 0.85em; text-align: center; background: white; border-radius: 12px; margin: 0;">
+                <thead>
+                    <tr style="background-color: #2c3e50; color: white;">
+                        <th>رتبه</th>
+                        <th>کاربر</th>
+                        <th>امتیاز لایو</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="u in liveLeaderboardData" :key="u.id">
+                        <tr>
+                            <td><strong x-text="u.rank"></strong></td>
+                            <td x-text="u.username || u.name"></td>
+                            <td><strong x-text="u.score" style="color: #27ae60; font-size: 1.1em;"></strong></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        <footer style="text-align: left; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+            <button @click="downloadLiveTableImage()" style="background: #28a745; border: none; font-weight: bold; border-radius: 8px;">📸 ذخیره تصویر جدول</button>
+        </footer>
+    </article>
+</dialog>
+
 
     </main>
 
@@ -320,12 +360,13 @@
                 usersList: [], 
                 logsList: [], 
                 selectedMatches: [], 
+                liveLeaderboardData: [],
                 
                 nHome: "", nAway: "", nDate: "", nTime: "", nStadium: "", 
                 totalPrize: 0, baleToken: "", baleChatId: "",
                 
                 finishedSortType: 'match_date',
-                modals: { editMatch: false },
+                modals: { editMatch: false, liveLeaderboard: false },
                 currentMatch: {}, 
                 
                 initData() {
@@ -438,24 +479,43 @@
                     .then(() => { alert(`ثبت شد.`); this.initData(); });
                 },
                 
-                // 🌟 تابع جدید که در اینجا قرار می‌گیرد:
                 sendLiveUpdate(m) {
-                    if (m.actualHome === null || m.actualAway === null || m.actualHome === "" || m.actualAway === "") {
-                        return alert("ابتدا گل‌های فعلی هر دو تیم را در کادر وارد کنید.");
-                    }
-                    fetch(`/matches/live-update`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            match_id: m.id, 
-                            home_goals: parseInt(m.actualHome), 
-                            away_goals: parseInt(m.actualAway) 
-                        })
-                    }).then(() => { 
-                        alert("گزارش لحظه‌ای با موفقیت در کانال بله ارسال شد!"); 
-                    });
-                },
-                // 🌟 پایان تابع جدید
+    if (m.actualHome === null || m.actualAway === null || m.actualHome === "" || m.actualAway === "") {
+        return alert("ابتدا گل‌های فعلی هر دو تیم را در کادر وارد کنید.");
+    }
+    fetch(`/matches/live-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            match_id: m.id, 
+            home_goals: parseInt(m.actualHome), 
+            away_goals: parseInt(m.actualAway),
+            minute: m.liveMinute || ""
+        })
+    }).then(() => { 
+        alert("گزارش لحظه‌ای با موفقیت در کانال بله ارسال شد!"); 
+    });
+},
+
+openLiveLeaderboardModal() {
+    fetch('/leaderboard/live-admin')
+    .then(r => r.json())
+    .then(data => {
+        this.liveLeaderboardData = data;
+        this.modals.liveLeaderboard = true;
+    });
+},
+
+downloadLiveTableImage() {
+    const element = document.getElementById('capture-live-zone');
+    html2canvas(element, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+        let link = document.createElement('a');
+        link.download = `live-leaderboard.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.click();
+    });
+},
+
 
                 logout() { localStorage.removeItem('footballUser'); window.location.href = '/'; }
             };

@@ -397,50 +397,55 @@
             <a href="#close" aria-label="Close" class="close" @click.prevent="modals.liveLeaderboard = false" style="margin: 0; filter: grayscale(100%); opacity: 0.6; transition: 0.3s;"></a>
         </header>
         
-        <div style="padding: 20px; background: #f8fafc;" id="capture-live-zone">
-            <div style="text-align: center; margin-bottom: 20px; font-weight: 800; color: #dc2626; font-size: 1em; display: flex; align-items: center; justify-content: center; gap: 8px; background: #fee2e2; padding: 8px 15px; border-radius: 12px; width: fit-content; margin-left: auto; margin-right: auto; border: 1px solid #fecaca;">
-                <span class="live-dot"></span>
-                محاسبه آنلاین همراه با نتایج زنده
+        <div style="overflow-x: auto; background: #f8fafc; padding: 10px 0;">
+            
+            <div id="capture-live-zone" style="min-width: 850px; background: #f8fafc; padding: 15px; border-radius: 12px; margin: 0 auto;">
+                
+                <div style="text-align: center; margin-bottom: 20px; font-weight: 800; color: #dc2626; font-size: 1em; display: flex; align-items: center; justify-content: center; gap: 8px; background: #fee2e2; padding: 8px 15px; border-radius: 12px; width: fit-content; margin-left: auto; margin-right: auto; border: 1px solid #fecaca;">
+                    <span class="live-dot"></span>
+                    محاسبه آنلاین همراه با نتایج زنده
+                </div>
+                
+                <div class="admin-live-table-wrapper" style="margin-bottom: 0; border: none; box-shadow: none;">
+                    <table class="admin-live-table">
+                        <thead>
+                            <tr>
+                                <th style="border-radius: 0 12px 0 0;">رتبه</th>
+                                <th>تغییر</th>
+                                <th>نام کاربر</th>
+                                <th>امتیاز کل</th>
+                                <th title="۳ امتیاز کامل (دقیق)">✅۳</th>
+                                <th title="۲ امتیاز (تفاضل)">✅۲</th>
+                                <th title="۱ امتیاز (برنده)">✅۱</th>
+                                <th title="پیش‌بینی غلط">❌</th>
+                                <th title="غایب (ثبت نکرده)">➖</th>
+                                <th style="border-radius: 12px 0 0 0;">💰 سهم جایزه (تومان)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="u in liveLeaderboardData" :key="u.id">
+                                <tr>
+                                    <td><span class="live-rank-badge" x-text="u.rank"></span></td>
+                                    <td dir="ltr">
+                                        <span x-show="u.rank_change === 'up'" style="color: #10b981; font-weight: 900; font-size: 1.4em;">🔼</span>
+                                        <span x-show="u.rank_change === 'down'" style="color: #ef4444; font-weight: 900; font-size: 1.4em;">🔽</span>
+                                        <span x-show="u.rank_change === 'same'" style="color: #94a3b8; font-weight: 900; font-size: 1.4em;">-</span>
+                                    </td>
+                                    <td style="font-weight: 900; font-size: 1.1em; color: #0f172a !important;" x-text="u.username || u.name"></td>
+                                    <td><strong x-text="u.score" style="color: #059669; font-size: 1.4em; font-weight: 900;"></strong></td>
+                                    <td x-text="u.exact" style="color: #10b981; font-weight: 900; font-size: 1.2em;"></td>
+                                    <td x-text="u.diff" style="color: #3b82f6; font-weight: 900; font-size: 1.2em;"></td>
+                                    <td x-text="u.winner" style="color: #f59e0b; font-weight: 900; font-size: 1.2em;"></td>
+                                    <td x-text="u.wrong" style="color: #ef4444; font-weight: bold;"></td>
+                                    <td x-text="u.absent" style="color: #94a3b8; font-weight: bold;"></td>
+                                    <td><span class="live-prize-badge" x-text="u.prize.toLocaleString('fa-IR')"></span></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
-            <div class="admin-live-table-wrapper">
-                <table class="admin-live-table">
-                    <thead>
-                        <tr>
-                            <th style="border-radius: 0 12px 0 0;">رتبه</th>
-                            <th>تغییر</th>
-                            <th>نام کاربر</th>
-                            <th>امتیاز کل</th>
-                            <th title="۳ امتیاز کامل (دقیق)">✅۳</th>
-                            <th title="۲ امتیاز (تفاضل)">✅۲</th>
-                            <th title="۱ امتیاز (برنده)">✅۱</th>
-                            <th title="پیش‌بینی غلط">❌</th>
-                            <th title="غایب (ثبت نکرده)">➖</th>
-                            <th style="border-radius: 12px 0 0 0;">💰 سهم جایزه (تومان)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="u in liveLeaderboardData" :key="u.id">
-                            <tr>
-                                <td><span class="live-rank-badge" x-text="u.rank"></span></td>
-                                <td dir="ltr">
-                                    <span x-show="u.rank_change === 'up'" style="color: #10b981; font-weight: 900; font-size: 1.4em;">🔼</span>
-                                    <span x-show="u.rank_change === 'down'" style="color: #ef4444; font-weight: 900; font-size: 1.4em;">🔽</span>
-                                    <span x-show="u.rank_change === 'same'" style="color: #94a3b8; font-weight: 900; font-size: 1.4em;">-</span>
-                                </td>
-                                <td style="font-weight: 900; font-size: 1.1em; color: #0f172a !important;" x-text="u.username || u.name"></td>
-                                <td><strong x-text="u.score" style="color: #059669; font-size: 1.4em; font-weight: 900;"></strong></td>
-                                <td x-text="u.exact" style="color: #10b981; font-weight: 900; font-size: 1.2em;"></td>
-                                <td x-text="u.diff" style="color: #3b82f6; font-weight: 900; font-size: 1.2em;"></td>
-                                <td x-text="u.winner" style="color: #f59e0b; font-weight: 900; font-size: 1.2em;"></td>
-                                <td x-text="u.wrong" style="color: #ef4444; font-weight: bold;"></td>
-                                <td x-text="u.absent" style="color: #94a3b8; font-weight: bold;"></td>
-                                <td><span class="live-prize-badge" x-text="u.prize.toLocaleString('fa-IR')"></span></td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
         </div>
         
         <footer style="text-align: right; background: #ffffff; padding: 20px 25px; border-top: 2px solid #f1f5f9;">
@@ -448,6 +453,7 @@
         </footer>
     </article>
 </dialog>
+
 
     </main>
 
@@ -608,13 +614,27 @@ openLiveLeaderboardModal() {
 
 downloadLiveTableImage() {
     const element = document.getElementById('capture-live-zone');
-    html2canvas(element, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+    
+    // متوقف کردن موقت محدودیت‌های عرض برای گرفتن یک عکس کامل
+    const originalWidth = element.style.width;
+    element.style.width = 'max-content';
+
+    html2canvas(element, { 
+        scale: 2, // خروجی با کیفیت HD
+        backgroundColor: '#f8fafc',
+        width: element.scrollWidth,
+        windowWidth: element.scrollWidth
+    }).then(canvas => {
+        // برگرداندن تنظیمات به حالت اولیه بلافاصله بعد از عکس
+        element.style.width = originalWidth;
+
         let link = document.createElement('a');
         link.download = `live-leaderboard.jpg`;
         link.href = canvas.toDataURL('image/jpeg', 0.95);
         link.click();
     });
 },
+
 
 
                 logout() { localStorage.removeItem('footballUser'); window.location.href = '/'; }

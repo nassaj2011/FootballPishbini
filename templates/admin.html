@@ -315,20 +315,21 @@
             </article>
         </dialog>
         
-        <style>
+    <style>
     .admin-live-table-wrapper {
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         border: 1px solid #e2e8f0;
-        overflow-x: auto;
+        overflow: hidden; /* جلوگیری از اسکرول افقی اضافه */
         margin-bottom: 15px;
+        width: 100%;
     }
     table.admin-live-table {
         width: 100% !important;
         margin: 0 !important;
         border-collapse: collapse !important;
-        font-size: 0.95em;
+        font-size: 0.9em;
         text-align: center;
         white-space: nowrap;
     }
@@ -337,89 +338,92 @@
     }
     table.admin-live-table th {
         color: #ffffff !important;
-        padding: 16px 10px !important;
+        padding: 12px 6px !important;
         font-weight: 800 !important;
         border: none !important;
     }
     table.admin-live-table td {
-        padding: 14px 10px !important;
+        padding: 10px 6px !important;
         border-bottom: 1px solid #f1f5f9 !important;
         color: #1e293b !important;
         vertical-align: middle !important;
     }
-    table.admin-live-table tbody tr:nth-child(even) {
-        background-color: #f8fafc !important;
-    }
-    table.admin-live-table tbody tr:hover {
-        background-color: #f0f9ff !important;
-    }
-    table.admin-live-table tbody tr:last-child td {
-        border-bottom: none !important;
-    }
+    table.admin-live-table tbody tr:nth-child(even) { background-color: #f8fafc !important; }
+    table.admin-live-table tbody tr:hover { background-color: #f0f9ff !important; }
+    table.admin-live-table tbody tr:last-child td { border-bottom: none !important; }
+    
     .live-rank-badge {
         background: linear-gradient(135deg, #64748b, #475569);
-        color: white;
-        padding: 4px 12px;
-        border-radius: 8px;
-        font-weight: 900;
+        color: white; padding: 4px 10px; border-radius: 6px; font-weight: 900;
     }
     .live-prize-badge {
         background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: white;
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-weight: bold;
+        color: white; padding: 4px 8px; border-radius: 6px; font-weight: bold;
         box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
     }
-    /* انیمیشن چشمک‌زن لایو */
     @keyframes pulse-red {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
         70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
     .live-dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        background-color: #ef4444;
-        border-radius: 50%;
-        animation: pulse-red 2s infinite;
+        display: inline-block; width: 8px; height: 8px;
+        background-color: #ef4444; border-radius: 50%; animation: pulse-red 2s infinite;
+    }
+
+    /* 📱 فشرده‌سازی فوق‌العاده برای نمایش یکپارچه در موبایل (بدون اسکرول افقی) */
+    @media (max-width: 600px) {
+        table.admin-live-table {
+            font-size: 0.65em !important; /* بسیار ریز برای جا شدن ۱۰ ستون */
+            white-space: normal !important;
+            word-wrap: break-word;
+        }
+        table.admin-live-table th, table.admin-live-table td {
+            padding: 6px 2px !important;
+        }
+        .live-rank-badge, .live-prize-badge {
+            padding: 2px 4px !important;
+            font-size: 0.9em !important;
+            border-radius: 4px !important;
+        }
+        .mobile-hide-text {
+            display: none !important; /* مخفی کردن کلمات اضافی در هدر موبایل */
+        }
     }
 </style>
 
-
-<dialog :open="modals.liveLeaderboard">
-    <article style="max-width: 1000px; width: 98%; border-radius: 20px; padding: 0; overflow: hidden; border: 1px solid #cbd5e1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-        <header style="padding: 20px 25px; background: #ffffff; border-bottom: 2px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin:0; font-size: 1.4em; font-weight:900; color: #0f172a; display: flex; align-items: center; gap: 10px;">
+<dialog :open="modals.liveLeaderboard" style="z-index: 9999;">
+    <article style="max-width: 1000px; width: 98%; max-height: 92vh; border-radius: 20px; padding: 0; display: flex; flex-direction: column; border: 1px solid #cbd5e1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); margin: auto;">
+        
+        <header style="flex-shrink: 0; padding: 15px 20px; background: #ffffff; border-bottom: 2px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin:0; font-size: 1.2em; font-weight:900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                 🏆 جدول رده‌بندی لحظه‌ای 
             </h3>
-            <a href="#close" aria-label="Close" class="close" @click.prevent="modals.liveLeaderboard = false" style="margin: 0; filter: grayscale(100%); opacity: 0.6; transition: 0.3s;"></a>
         </header>
         
-        <div style="overflow-x: auto; background: #f8fafc; padding: 10px 0;">
+        <div style="flex-grow: 1; overflow-y: auto; overflow-x: hidden; padding: 15px 5px; background: #f8fafc;">
             
-            <div id="capture-live-zone" style="min-width: 850px; background: #f8fafc; padding: 15px; border-radius: 12px; margin: 0 auto;">
+            <div id="capture-live-zone" style="background: #f8fafc; padding: 10px; border-radius: 12px; margin: 0 auto; width: 100%;">
                 
-                <div style="text-align: center; margin-bottom: 20px; font-weight: 800; color: #dc2626; font-size: 1em; display: flex; align-items: center; justify-content: center; gap: 8px; background: #fee2e2; padding: 8px 15px; border-radius: 12px; width: fit-content; margin-left: auto; margin-right: auto; border: 1px solid #fecaca;">
+                <div style="text-align: center; margin-bottom: 15px; font-weight: 800; color: #dc2626; font-size: 0.85em; display: flex; align-items: center; justify-content: center; gap: 8px; background: #fee2e2; padding: 6px 12px; border-radius: 8px; width: fit-content; margin-left: auto; margin-right: auto; border: 1px solid #fecaca;">
                     <span class="live-dot"></span>
                     محاسبه آنلاین همراه با نتایج زنده
                 </div>
                 
-                <div class="admin-live-table-wrapper" style="margin-bottom: 0; border: none; box-shadow: none;">
+                <div class="admin-live-table-wrapper">
                     <table class="admin-live-table">
                         <thead>
                             <tr>
                                 <th style="border-radius: 0 12px 0 0;">رتبه</th>
                                 <th>تغییر</th>
-                                <th>نام کاربر</th>
-                                <th>امتیاز کل</th>
-                                <th title="۳ امتیاز کامل (دقیق)">✅۳</th>
-                                <th title="۲ امتیاز (تفاضل)">✅۲</th>
-                                <th title="۱ امتیاز (برنده)">✅۱</th>
+                                <th>کاربر</th>
+                                <th>امتیاز</th>
+                                <th title="۳ امتیاز کامل">✅۳</th>
+                                <th title="۲ امتیاز">✅۲</th>
+                                <th title="۱ امتیاز">✅۱</th>
                                 <th title="پیش‌بینی غلط">❌</th>
-                                <th title="غایب (ثبت نکرده)">➖</th>
-                                <th style="border-radius: 12px 0 0 0;">💰 سهم جایزه (تومان)</th>
+                                <th title="غایب">➖</th>
+                                <th style="border-radius: 12px 0 0 0;"><span class="mobile-hide-text">سهم </span>جایزه</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -427,15 +431,15 @@
                                 <tr>
                                     <td><span class="live-rank-badge" x-text="u.rank"></span></td>
                                     <td dir="ltr">
-                                        <span x-show="u.rank_change === 'up'" style="color: #10b981; font-weight: 900; font-size: 1.4em;">🔼</span>
-                                        <span x-show="u.rank_change === 'down'" style="color: #ef4444; font-weight: 900; font-size: 1.4em;">🔽</span>
-                                        <span x-show="u.rank_change === 'same'" style="color: #94a3b8; font-weight: 900; font-size: 1.4em;">-</span>
+                                        <span x-show="u.rank_change === 'up'" style="color: #10b981; font-weight: 900; font-size: 1.2em;">🔼</span>
+                                        <span x-show="u.rank_change === 'down'" style="color: #ef4444; font-weight: 900; font-size: 1.2em;">🔽</span>
+                                        <span x-show="u.rank_change === 'same'" style="color: #94a3b8; font-weight: 900; font-size: 1.2em;">-</span>
                                     </td>
-                                    <td style="font-weight: 900; font-size: 1.1em; color: #0f172a !important;" x-text="u.username || u.name"></td>
-                                    <td><strong x-text="u.score" style="color: #059669; font-size: 1.4em; font-weight: 900;"></strong></td>
-                                    <td x-text="u.exact" style="color: #10b981; font-weight: 900; font-size: 1.2em;"></td>
-                                    <td x-text="u.diff" style="color: #3b82f6; font-weight: 900; font-size: 1.2em;"></td>
-                                    <td x-text="u.winner" style="color: #f59e0b; font-weight: 900; font-size: 1.2em;"></td>
+                                    <td style="font-weight: 900; color: #0f172a !important;" x-text="u.username || u.name"></td>
+                                    <td><strong x-text="u.score" style="color: #059669; font-size: 1.2em; font-weight: 900;"></strong></td>
+                                    <td x-text="u.exact" style="color: #10b981; font-weight: 900;"></td>
+                                    <td x-text="u.diff" style="color: #3b82f6; font-weight: 900;"></td>
+                                    <td x-text="u.winner" style="color: #f59e0b; font-weight: 900;"></td>
                                     <td x-text="u.wrong" style="color: #ef4444; font-weight: bold;"></td>
                                     <td x-text="u.absent" style="color: #94a3b8; font-weight: bold;"></td>
                                     <td><span class="live-prize-badge" x-text="u.prize.toLocaleString('fa-IR')"></span></td>
@@ -445,11 +449,11 @@
                     </table>
                 </div>
             </div>
-            
         </div>
         
-        <footer style="text-align: right; background: #ffffff; padding: 20px 25px; border-top: 2px solid #f1f5f9;">
-            <button @click="downloadLiveTableImage()" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 900; border-radius: 12px; padding: 10px 25px; color: white; cursor: pointer; font-family: 'Vazirmatn'; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); font-size: 1.1em;">📸 دانلود تصویر با کیفیت جدول</button>
+        <footer style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 15px 20px; border-top: 2px solid #f1f5f9;">
+            <button @click.prevent="modals.liveLeaderboard = false" style="background: #ef4444; border: none; font-weight: 800; border-radius: 10px; padding: 8px 15px; color: white; margin: 0; font-size: 0.9em; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);">❌ بستن</button>
+            <button @click="downloadLiveTableImage()" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 900; border-radius: 10px; padding: 8px 15px; color: white; margin: 0; cursor: pointer; font-family: 'Vazirmatn'; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); font-size: 0.9em;">📸 ذخیره تصویر</button>
         </footer>
     </article>
 </dialog>
@@ -615,18 +619,22 @@ openLiveLeaderboardModal() {
 downloadLiveTableImage() {
     const element = document.getElementById('capture-live-zone');
     
-    // متوقف کردن موقت محدودیت‌های عرض برای گرفتن یک عکس کامل
+    // ترفند جادویی برای عکس باکیفیت در موبایل: 
+    // قبل از عکس گرفتن، عرض جدول را به صورت موقت 900 پیکسل می‌کنیم تا عکس دسکتاپی بگیریم!
     const originalWidth = element.style.width;
-    element.style.width = 'max-content';
+    const originalMinWidth = element.style.minWidth;
+    element.style.width = '900px';
+    element.style.minWidth = '900px';
 
     html2canvas(element, { 
-        scale: 2, // خروجی با کیفیت HD
+        scale: 2, 
         backgroundColor: '#f8fafc',
-        width: element.scrollWidth,
-        windowWidth: element.scrollWidth
+        width: 900, // اجبار به عرض تصویر استاندارد
+        windowWidth: 900
     }).then(canvas => {
-        // برگرداندن تنظیمات به حالت اولیه بلافاصله بعد از عکس
+        // بلافاصله بعد از عکس، ظاهر گوشی را به حالت قبلی برمی‌گردانیم
         element.style.width = originalWidth;
+        element.style.minWidth = originalMinWidth;
 
         let link = document.createElement('a');
         link.download = `live-leaderboard.jpg`;
@@ -634,6 +642,9 @@ downloadLiveTableImage() {
         link.click();
     });
 },
+
+
+
 
 
 

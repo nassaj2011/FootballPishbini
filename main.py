@@ -66,7 +66,7 @@ BALE_CHAT_ID = "@Golchine_Akhbar"
 ADMIN_BALE_ID = "189389617"
 
 # --- تنظیمات API-Sports ---
-API_SPORTS_KEY = "91a19f0ef86a021c15fb02f28539fe86"
+API_SPORTS_KEY = "37071d4ecde74e75bfab624badb8e2e5"
 
 
 # دیکشنری ترجمه نام تیم‌ها (برای تطبیق دیتابیس فارسی با نتایج انگلیسی)
@@ -92,31 +92,28 @@ def is_team_match(db_team_en, api_team_name):
     ratio = SequenceMatcher(None, db_team, api_team).ratio()
     return ratio >= 0.75
 
+# --- کلید API رایگان TheSportsDB ---
+THE_SPORTS_DB_KEY = "1" 
+
 def fetch_and_update_from_api(db_session: Session, target_date_str: str):
     """
-    دریافت نتایج از API-Football و آپدیت خودکار دیتابیس
+    دریافت نتایج نهایی از TheSportsDB رایگان و آپدیت خودکار دیتابیس
     فرمت ورودی: YYYY-MM-DD
     """
-    url = f"https://v3.football.api-sports.io/fixtures?date={target_date_str}"
-    headers = {'x-apisports-key': API_SPORTS_KEY}
+    url = f"https://www.thesportsdb.com/api/v1/json/{THE_SPORTS_DB_KEY}/eventsday.php?d={target_date_str}&s=Soccer"
     
     try:
-        response = requests.get(url, headers=headers, timeout=60)
+        response = requests.get(url, timeout=60)
         
-        # بررسی خطاهای مربوط به خود API (مثل اتمام اعتبار رایگان)
         if response.status_code != 200:
             return f"❌ خطای سرور API. کد خطا: {response.status_code}"
             
         data = response.json()
         
-        # بررسی محدودیت درخواست‌های روزانه
-        if data.get('errors') and 'requests' in data['errors'].get('rateLimit', ''):
-            return "❌ محدودیت ۱۰۰ درخواست رایگان امروز شما در API-Football به پایان رسیده است."
-            
-        if not data.get('response'):
+        if not data.get('events'):
             return "⚠️ هیچ مسابقه‌ای در این تاریخ در سرور جهانی یافت نشد."
             
-        api_fixtures = data['response']
+        api_fixtures = data['events']
         updated_count = 0
         
         # فقط بازی‌های پیش‌رو که در دیتابیس هستند را چک می‌کنیم
@@ -132,18 +129,20 @@ def fetch_and_update_from_api(db_session: Session, target_date_str: str):
                 
             # جستجو در نتایج API
             for api_match in api_fixtures:
-                api_home = api_match['teams']['home']['name']
-                api_away = api_match['teams']['away']['name']
+                api_home = api_match.get('strHomeTeam', '')
+                api_away = api_match.get('strAwayTeam', '')
                 
                 # استفاده از تابع هوشمند برای مقایسه نام تیم‌ها
                 if is_team_match(home_en, api_home) and is_team_match(away_en, api_away):
-                    status_short = api_match['fixture']['status']['short']
                     
-                    # کدهای پایان بازی در API-Football: 
-                    # FT (تمام وقت)، AET (پایان وقت اضافه)، PEN (پایان پنالتی)
-                    if status_short in ['FT', 'PEN', 'AET']:
-                        match.actual_home_goals = api_match['goals']['home']
-                        match.actual_away_goals = api_match['goals']['away']
+                    status = str(api_match.get('strStatus', '')).lower()
+                    h_goals = api_match.get('intHomeScore')
+                    a_goals = api_match.get('intAwayScore')
+                    
+                    # بررسی پایان بازی
+                    if status in ['match finished', 'ft', 'aet', 'pen'] and h_goals is not None:
+                        match.actual_home_goals = int(h_goals)
+                        match.actual_away_goals = int(a_goals)
                         match.status = "finished"
                         updated_count += 1
                         
@@ -166,6 +165,64 @@ def fetch_and_update_from_api(db_session: Session, target_date_str: str):
         return "❌ خطای Timeout: سرور خارجی در زمان مناسب پاسخ نداد."
     except Exception as e:
         return f"❌ خطای غیرمنتظره در ارتباط با API: {str(e)}"
+
+def fetch_live_match_from_api(db_session: Session, match_id: int):
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if not match: return "❌ بازی در دیتابیس سایت یافت نشد."
+
+    home_en = TEAM_NAME_MAPPING.get(match.home_team.strip())
+    away_en = TEAM_NAME_MAPPING.get(match.away_team.strip())
+    if not home_en or not away_en: return "❌ نام تیم‌ها در دیکشنری ترجمه یافت نشد."
+
+    # جستجوی بازی‌های امروز برای پیدا کردن نتیجه لایو
+    today_str = datetime.now(pytz.timezone("Asia/Tehran")).strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={today_str}"
+    headers = {'x-apisports-key': API_SPORTS_KEY}
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=15)
+        data = res.json()
+        if not data.get('response'): return "⚠️ هیچ مسابقه‌ای امروز در سرور جهانی یافت نشد."
+        
+        for api_match in data['response']:
+            api_home = api_match['teams']['home']['name']
+            api_away = api_match['teams']['away']['name']
+            
+            if is_team_match(home_en, api_home) and is_team_match(away_en, api_away):
+                status_short = api_match['fixture']['status']['short']
+                elapsed = api_match['fixture']['status']['elapsed']
+                h_goals = api_match['goals']['home']
+                a_goals = api_match['goals']['away']
+                
+                if h_goals is None or a_goals is None:
+                    return "⚠️ این بازی هنوز شروع نشده یا گلی ثبت نشده است."
+                    
+                # 🌟 ذخیره نتیجه در حافظه لایو
+                ACTIVE_LIVE_SCORES[match.id] = {
+                    "home": h_goals, 
+                    "away": a_goals, 
+                    "minute": str(elapsed) if elapsed else "نامشخص", 
+                    "home_team": match.home_team, 
+                    "away_team": match.away_team
+                }
+                
+                # ساخت پیام لایو برای کانال بله
+                msg = generate_live_bale_message(db_session, match.id)
+                
+                # اگر بازی تمام شده بود، مستقیماً در دیتابیس هم ثبت نهایی می‌شود
+                if status_short in ['FT', 'PEN', 'AET']:
+                    match.actual_home_goals = h_goals
+                    match.actual_away_goals = a_goals
+                    match.status = "finished"
+                    db_session.commit()
+                    calculate_leaderboard_data(db_session)
+                    msg += "\n\n🏁 این بازی به پایان رسید و نتیجه نهایی در دیتابیس ثبت شد."
+                    
+                return msg
+        
+        return "❌ این مسابقه در لیست بازی‌های امروزِ سرور جهانی پیدا نشد."
+    except Exception as e:
+        return f"❌ خطای ارتباط با API: {e}"
 
 # 🌟 تابع ارسال پیام (همراه با سیستم دیباگ و پردازش دکمه‌ها)
 def send_bale_notification(message_text: str, target_chat_id=None, reply_markup=None):
@@ -1325,6 +1382,18 @@ async def bale_webhook(request: Request, db_session: Session = Depends(get_db)):
                     send_bale_notification("\n".join(caption_parts), target_chat_id=chat_id)
                 except ValueError:
                     send_bale_notification("❌ فرمت دستور اشتباه است.", target_chat_id=chat_id)
+
+            # 🌟 دستور جدید برای دریافت لحظه‌ای نتیجه مسابقه از طریق API
+            elif text.startswith("/live"):
+                m_id_str = text.replace("/live", "").strip()
+                if m_id_str.isdigit():
+                    m_id = int(m_id_str)
+                    send_bale_notification("⏳ در حال دریافت اطلاعات زنده از سرور جهانی...", target_chat_id=chat_id)
+                    
+                    result_msg = fetch_live_match_from_api(db_session, m_id)
+                    send_bale_notification(result_msg, target_chat_id=chat_id)
+                else:
+                    send_bale_notification("❌ فرمت دستور اشتباه است. مثال: /live84", target_chat_id=chat_id)
 
             elif text.startswith("/set_"):
                 parts = text.split("_")

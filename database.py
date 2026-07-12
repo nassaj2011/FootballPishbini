@@ -67,6 +67,23 @@ class AuditLog(Base):
     timestamp = Column(String)
 
 
+class MatchResultRevision(Base):
+    """Permanent history of every correction made to a finished match result."""
+
+    __tablename__ = "match_result_revisions"
+    id = Column(Integer, primary_key=True, index=True)
+    match_id = Column(Integer, ForeignKey("matches.id"), index=True)
+    old_home_goals = Column(Integer, nullable=False)
+    old_away_goals = Column(Integer, nullable=False)
+    new_home_goals = Column(Integer, nullable=False)
+    new_away_goals = Column(Integer, nullable=False)
+    reason = Column(String, nullable=False)
+    admin_name = Column(String, default="مدیریت")
+    ip_address = Column(String, default="Unknown")
+    user_agent = Column(String, default="Unknown")
+    timestamp = Column(String, nullable=False)
+
+
 class SystemSetting(Base):
     __tablename__ = "system_settings"
     id = Column(Integer, primary_key=True, index=True)

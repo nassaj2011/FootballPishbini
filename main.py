@@ -2,6 +2,8 @@ import os
 import io
 import json
 import shutil
+import hmac
+import hashlib
 from datetime import datetime
 import pytz
 import jdatetime
@@ -12,19 +14,39 @@ from fastapi.responses import FileResponse
 from difflib import SequenceMatcher
 
 
-from fastapi import FastAPI, Depends, HTTPException, Request, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, Request, Response, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 
 import database as db
+
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "manhastam")
+ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", f"{ADMIN_PASSWORD}-football-session")
+ADMIN_SESSION_COOKIE = "football_admin_session"
+
+
+def _admin_session_token() -> str:
+    return hmac.new(
+        ADMIN_SESSION_SECRET.encode("utf-8"),
+        b"football-admin",
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def require_admin_session(request: Request):
+    token = request.cookies.get(ADMIN_SESSION_COOKIE, "")
+    if not hmac.compare_digest(token, _admin_session_token()):
+        raise HTTPException(status_code=401, detail="نشست مدیریت معتبر نیست؛ دوباره وارد شوید")
+    return True
 
 # 🎯 دیکشنری تبدیل نام کاربری به نام محترمانه
 USER_MAPPING = {
@@ -415,7 +437,13 @@ class MatchResultItem(BaseModel):
 class BulkFinishRequest(BaseModel): 
     results: List[MatchResultItem]
 
-def calculate_leaderboard_data(db_session):
+class MatchResultEditRequest(BaseModel):
+    actual_home: int = Field(ge=0, le=99)
+    actual_away: int = Field(ge=0, le=99)
+    reason: str = Field(min_length=3, max_length=500)
+
+
+def calculate_leaderboard_data(db_session, persist_scores: bool = True):
     users = db_session.query(db.User).all()
     
     # 🌟 تنظیم مبدا جدید محاسبات: ۲۶ خرداد ساعت ۰۴:۰۰ صبح به وقت تهران
@@ -466,7 +494,10 @@ def calculate_leaderboard_data(db_session):
         prev_rank = getattr(u, 'previous_rank', 1) or 1
         leaderboard_data.append({"id": u.id, "name": u.name, "username": u.username, "score": stats["score"], "previous_rank": prev_rank, "prize": 0.0, "trend": "-", **stats})
        
-    db_session.commit()
+    if persist_scores:
+        db_session.commit()
+    else:
+        db_session.flush()
     leaderboard_data.sort(key=lambda x: x["score"], reverse=True)
    
     current_rank = 1
@@ -925,8 +956,16 @@ def create_user(request: Request, name: str, username: str, password: str, db_se
     return {"status": "success", "user_id": new_user.id, "name": new_user.name, "username": new_user.username}
 
 @app.post("/login/")
-def login_user(request: Request, username: str, password: str, db_session: Session = Depends(get_db)):
-    if username == "admin" and password == "manhastam":
+def login_user(request: Request, response: Response, username: str, password: str, db_session: Session = Depends(get_db)):
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        response.set_cookie(
+            key=ADMIN_SESSION_COOKIE,
+            value=_admin_session_token(),
+            max_age=8 * 60 * 60,
+            httponly=True,
+            samesite="strict",
+            secure=os.getenv("ADMIN_COOKIE_SECURE", "false").lower() == "true",
+        )
         log_action(db_session, request, "مدیریت", "ورود ادمین", "ورود به سیستم")
         return {"status": "success", "user_id": 0, "name": "مدیریت", "username": "admin", "is_admin": True}
        
@@ -947,6 +986,12 @@ def login_user(request: Request, username: str, password: str, db_session: Sessi
     # ---------------------------------------
    
     return {"status": "success", "user_id": user.id, "name": user.name, "username": user.username, "is_admin": False}
+
+
+@app.post("/logout/")
+def logout_user(response: Response):
+    response.delete_cookie(ADMIN_SESSION_COOKIE, samesite="strict")
+    return {"status": "success"}
 
 @app.post("/users/edit/{target_user_id}")
 def edit_user_username(target_user_id: int, new_username: str, db_session: Session = Depends(get_db)):
@@ -1118,6 +1163,130 @@ def bulk_finish_matches(req: BulkFinishRequest, db_session: Session = Depends(ge
             print(f"Bale error: {e}")
 
     return {"status": "success"}
+
+
+@app.get("/matches/{match_id}/result-revisions")
+def get_match_result_revisions(
+    match_id: int,
+    db_session: Session = Depends(get_db),
+    _admin_session: bool = Depends(require_admin_session),
+):
+    """Return the correction history for one match, newest first."""
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+
+    return db_session.query(db.MatchResultRevision).filter(
+        db.MatchResultRevision.match_id == match_id
+    ).order_by(db.MatchResultRevision.id.desc()).all()
+
+
+@app.post("/matches/{match_id}/edit-result")
+def edit_finished_match_result(
+    match_id: int,
+    req: MatchResultEditRequest,
+    request: Request,
+    db_session: Session = Depends(get_db),
+    _admin_session: bool = Depends(require_admin_session),
+):
+    """
+    Correct a finished result and rebuild all affected user scores atomically.
+
+    The previous and new result are permanently recorded. Existing predictions
+    are never changed; only the official result and derived leaderboard scores
+    are recalculated.
+    """
+    match = db_session.query(db.Match).filter(db.Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="مسابقه یافت نشد")
+    if match.status != "finished" or match.actual_home_goals is None or match.actual_away_goals is None:
+        raise HTTPException(status_code=400, detail="فقط نتیجه مسابقه پایان‌یافته قابل اصلاح است")
+
+    reason = req.reason.strip()
+    if len(reason) < 3:
+        raise HTTPException(status_code=422, detail="علت اصلاح نتیجه را وارد کنید")
+
+    old_home = match.actual_home_goals
+    old_away = match.actual_away_goals
+    if old_home == req.actual_home and old_away == req.actual_away:
+        raise HTTPException(status_code=400, detail="نتیجه جدید با نتیجه فعلی یکسان است")
+
+    try:
+        # Establish a reliable before-state and preserve it for rank movement.
+        before_leaderboard = calculate_leaderboard_data(db_session, persist_scores=False)
+        before_scores = {row["id"]: row["score"] for row in before_leaderboard}
+        before_ranks = {row["id"]: row["rank"] for row in before_leaderboard}
+
+        users = db_session.query(db.User).all()
+        for user in users:
+            user.previous_rank = before_ranks.get(user.id, user.previous_rank or 1)
+
+        match.actual_home_goals = req.actual_home
+        match.actual_away_goals = req.actual_away
+        match.status = "finished"
+        ACTIVE_LIVE_SCORES.pop(match.id, None)
+
+        after_leaderboard = calculate_leaderboard_data(db_session, persist_scores=False)
+        changed_users = []
+        for row in after_leaderboard:
+            old_score = before_scores.get(row["id"], 0)
+            if old_score != row["score"]:
+                changed_users.append({
+                    "user_id": row["id"],
+                    "username": row["username"] or row["name"],
+                    "old_score": old_score,
+                    "new_score": row["score"],
+                    "change": row["score"] - old_score,
+                    "new_rank": row["rank"],
+                })
+
+        now_str = jdatetime.datetime.now().strftime("%Y/%m/%d - %H:%M:%S")
+        ip = request.client.host if request.client else "Unknown"
+        user_agent = request.headers.get("user-agent", "Unknown")
+
+        db_session.add(db.MatchResultRevision(
+            match_id=match.id,
+            old_home_goals=old_home,
+            old_away_goals=old_away,
+            new_home_goals=req.actual_home,
+            new_away_goals=req.actual_away,
+            reason=reason,
+            admin_name="مدیریت پنل",
+            ip_address=ip,
+            user_agent=user_agent,
+            timestamp=now_str,
+        ))
+        db_session.add(db.AuditLog(
+            user_name="مدیریت پنل",
+            action="اصلاح نتیجه مسابقه",
+            details=(
+                f"بازی #{match.id}: {match.home_team} - {match.away_team} | "
+                f"نتیجه قبلی {old_home}-{old_away} | نتیجه جدید "
+                f"{req.actual_home}-{req.actual_away} | علت: {reason}"
+            ),
+            ip_address=ip,
+            user_agent=user_agent,
+            timestamp=now_str,
+        ))
+
+        db_session.commit()
+        changed_users.sort(key=lambda item: abs(item["change"]), reverse=True)
+
+        return {
+            "status": "success",
+            "message": "نتیجه اصلاح و امتیازها با موفقیت بازمحاسبه شد",
+            "match_id": match.id,
+            "old_result": {"home": old_home, "away": old_away},
+            "new_result": {"home": req.actual_home, "away": req.actual_away},
+            "affected_users_count": len(changed_users),
+            "changed_users": changed_users,
+        }
+    except HTTPException:
+        db_session.rollback()
+        raise
+    except Exception as exc:
+        db_session.rollback()
+        raise HTTPException(status_code=500, detail=f"خطا در اصلاح نتیجه: {exc}")
 
 # 🌟 تابع مرکزی دریافت اطلاعات (وب‌هوک) شامل پردازش کلیک روی دکمه‌های شیشه‌ای
 @app.post("/bale-webhook")
